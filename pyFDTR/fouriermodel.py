@@ -1,33 +1,37 @@
 from sympy import *
 from .domain import *
 from pyFDTR.util import complex_quadrature
+import numpy as np
 
 class FourierModelFDTR:
 
-	precision = 7
+	matrix = None
+	lfunction = None
 
 	def __init__(self,domain,rpump,rprobe):
 		self.domain=domain
 		self.rpump=rpump
 		self.rprobe=rprobe
 
-	def tointegrate(self, chi_var,frequency=200):
+	def set_frequency(self,frequency=200):
+		self.frequency = frequency
+
+	def tointegrate(self, chi_var):
+		return complex(self.lfunction(chi_var))
+
+
+	def get_phase(self,frequency):
+		self.frequency = frequency
+		self.domain.calc_transfer_matrix()
+		self.matrix = self.domain.matrix
 		chi = symbols('chi')
 		omega = symbols('omega')
-		matrix = self.domain.matrix
-		Lintegrand =  (1 / (2 * pi) ) * chi * exp( -( (self.rprobe**2 + self.rpump **2) * chi ** 2 ) / (8) ) * ( - matrix[1,1] / matrix[1,0] )
-		complex(Lintegrand.subs(chi,chi_var).subs(omega,frequency).evalf(self.precision))
-
-
-	def get_phase(self,frequency=200):
+		Lintegrand =  (1 / (2 * pi) ) * chi * exp( -( (self.rprobe**2 + self.rpump **2) * chi ** 2 ) / (8) ) * ( - self.matrix[1,1] / self.matrix[1,0] )
+		self.integrand = Lintegrand.subs(omega,self.frequency)
+		self.lfunction = lambdify(chi,self.integrand,'mpmath')
 		upperbound = 2 / sqrt(self.rpump ** 2 + self.rprobe ** 2)
-		result = complex_quadrature(self.tointegrate,0,upperbound)[0]
+		result = complex_quadrature(self.tointegrate,0,upperbound)
+		return -(90 + (180*np.arctan(np.imag(result[0])/np.real(result[0]))/np.pi))
 
 
-
-def get_L_zero_one(c,d,rzero,rone):
-	chi = symbols('chi')
-	upperbound = 2 / sqrt(rzero ** 2 + rone ** 2)
-	Lintegrand =  (1 / (2 * pi) ) * chi * exp( -( (rzero**2 + rone**2) * chi ** 2 ) / (8) ) * ( - d / c )
-	return Lintegrand #integrate(Lintegrand, (chi, 0, upperbound))
 

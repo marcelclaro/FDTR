@@ -49,7 +49,7 @@ class Domain:
 	def calc_transfer_matrix(self):
 		matrix = Matrix([ [1,0],
 					      [0,1]])
-		for layer_or_interface in self.heatpath:
+		for layer_or_interface in self.heat_path:
 			matrix *= layer_or_interface.getFourier_Matrix()
 		self.matrix = matrix
 
@@ -61,9 +61,9 @@ class Heatpath:
 
 class Layer(Heatpath):
 	
-	cp = 133.0  # Cp - Heat capacity 
-	kt = 155.0  # kappa_trans - Heat conductivity transverse (normal) to the surface
-	kp = 166.0  # kappa_parallel - Heat conductivity parallel to the surface
+	cp = 1.0e6  # Cp - Heat capacity 
+	kt = 50 # kappa_trans - Heat conductivity transverse (normal) to the surface
+	kp = 50  # kappa_parallel - Heat conductivity parallel to the surface
 	density = 222.0  #Material density
 	
 	def set_layer_param(self, cp, density, kt, kp):
