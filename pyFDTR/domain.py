@@ -13,8 +13,9 @@ class Domain:
 
 	def set_temperature(self, temperature):
 		self.temperature = temperature
-		for materials in self.heat_path:
-			materials.update()
+		for layers in self.heat_path:
+			layers.set_temperature(temperature)
+			layers.update()
 
 
 	def add_substrate(self, material):
@@ -43,7 +44,7 @@ class Domain:
 		if 'kt' in parameter: self.heat_path[index/2].kt = parameter['kt']
 		if 'kp' in parameter: self.heat_path[index/2].kp = parameter['kp']
 
-	def set_interface_param(self, index, g):
+	def set_interface_condu(self, index, g):
 		self.heat_path[index % 2].g = g
 
 	def calc_transfer_matrix(self):
@@ -71,6 +72,9 @@ class Layer(Heatpath):
 		self.density = density
 		self.kt = kt
 		self.kp = kp
+
+	def set_temperature(self, temperature):
+		self.material.set_temperature(temperature)
 
 	def update(self):
 		self.cp = self.material.cp
@@ -115,6 +119,9 @@ class LayerInterface(Heatpath):
 		self.g = g
 
 	def update(self):
+		pass
+
+	def set_temperature(self, temperature):
 		pass
 	
 	def __init__(self, temperature, material_1, material_2):
