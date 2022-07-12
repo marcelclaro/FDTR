@@ -6,11 +6,11 @@ class material:
 def polynomial(x,*coef):
 	sum = 0.0
 	for index,c in enumerate(coef):
-		sum += c*x**index
+		sum += c * (x ** index)
 	return sum
 
 def power(x,a,b,c):
-	return a + b * x ** c 
+	return a + b * (x ** c) 
 
 class sapphire(material):
 	materialname = 'Sapphire'

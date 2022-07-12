@@ -5,9 +5,9 @@ from pyFDTR.materials import sapphire,default_material
 
 class Domain:
 	substrate_defined = False
-	heat_path = []
 
 	def __init__(self, temperature = 300):
+		self.heat_path = []
 		self.temperature = temperature
 
 
@@ -21,8 +21,8 @@ class Domain:
 	def add_substrate(self, material):
 		if( not self.substrate_defined):
 			if material == None: material=sapphire(self.temperature)
-			self.heat_path.append(Layer(1,self.temperature,material(self.temperature)))
-			substrate_defined = True
+			self.heat_path.append(Layer(0.001,self.temperature,material(self.temperature)))
+			self.substrate_defined = True
 		else:
 			print('Substrate already defined!')
 
@@ -32,17 +32,17 @@ class Domain:
 		self.heat_path.append(Layer(thickness,self.temperature,material(self.temperature)))
 
 	def set_layer_param(self, index, thickness, cp, density, kt, kp):
-		self.heat_path[index/2].thickness = thickness
-		self.heat_path[index/2].cp = cp
-		self.heat_path[index/2].density = density
-		self.heat_path[index/2].kt = kt
-		self.heat_path[index/2].kp = kp
+		self.heat_path[index*2].thickness = thickness
+		self.heat_path[index*2].cp = cp
+		self.heat_path[index*2].density = density
+		self.heat_path[index*2].kt = kt
+		self.heat_path[index*2].kp = kp
 
 	def set_layer_param(self, index, **parameter):
-		if 'cp' in parameter: self.heat_path[index/2].cp = parameter['cp']
-		if 'density' in parameter: self.heat_path[index/2].density = parameter['density']
-		if 'kt' in parameter: self.heat_path[index/2].kt = parameter['kt']
-		if 'kp' in parameter: self.heat_path[index/2].kp = parameter['kp']
+		if 'cp' in parameter: self.heat_path[index*2].cp = parameter['cp']
+		if 'density' in parameter: self.heat_path[index*2].density = parameter['density']
+		if 'kt' in parameter: self.heat_path[index*2].kt = parameter['kt']
+		if 'kp' in parameter: self.heat_path[index*2].kp = parameter['kp']
 
 	def set_interface_condu(self, index, g):
 		self.heat_path[index % 2].g = g
@@ -95,8 +95,8 @@ class Layer(Heatpath):
 		chi = symbols('chi')
 		omega = symbols('omega')
 		mu = sqrt( (self.kp*chi*chi+complex(0,1)*self.cp*omega)/self.kt )
-		return Matrix([[cos(mu*self.thickness),-self.kt*mu*sin(mu*self.thickness)],
-					   [(1/(self.kt*mu)*sin(mu*self.thickness)),cos(mu*self.thickness)]])
+		return Matrix([[cosh(mu*self.thickness),-(1/(self.kt*mu))*sinh(mu*self.thickness)],
+					   [-(self.kt*mu)*sinh(mu*self.thickness),cosh(mu*self.thickness)]])
 
 	def __init__(self, thickness, temperature, material):
 		self.thickness = thickness

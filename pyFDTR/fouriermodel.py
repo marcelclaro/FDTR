@@ -28,15 +28,15 @@ class FourierModelFDTR:
 		# Calculate function to be integrated "Inverse Hankel"
 		chi = symbols('chi')
 		omega = symbols('omega')
-		Lintegrand =  (1 / (2 * pi) ) * chi * exp( -( (self.rprobe**2 + self.rpump **2) * chi ** 2 ) / (8) ) * ( - self.matrix[1,1] / self.matrix[1,0] )
-		self.integrand = Lintegrand.subs(omega,self.frequency)
+		Lintegrand =  (1 / (2 * pi) ) * chi * exp( -( (self.rprobe * self.rprobe + self.rpump * self.rpump ) * chi * chi ) / (8) ) * ( - self.matrix[1,1] / self.matrix[1,0] )
+		self.integrand = Lintegrand.subs(omega,2.0*np.pi*self.frequency)
 		self.lfunction = lambdify(chi,self.integrand,'mpmath')
 		
 		# integration
-		upperbound = 2 / sqrt(self.rpump ** 2 + self.rprobe ** 2)
-		result = complex_quadrature(self.tointegrate,0,upperbound, epsrel=1.0e-7)
+		upperbound = 4.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
+		result = complex_quadrature(self.tointegrate,0.0,upperbound)
 		
-		return -(90 + (180*np.arctan(np.imag(result[0])/np.real(result[0]))/np.pi))
+		return 180*np.arctan(np.imag(result[0])/np.real(result[0]))/np.pi
 
 
 
