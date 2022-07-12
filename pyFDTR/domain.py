@@ -94,7 +94,7 @@ class Layer(Heatpath):
 	def getFourier_Matrix(self):
 		chi = symbols('chi')
 		omega = symbols('omega')
-		mu = sqrt( (self.kp*chi*chi+complex(0,1)*self.density*omega)/self.kt )
+		mu = sqrt( (self.kp*chi*chi+complex(0,1)*self.cp*omega)/self.kt )
 		return Matrix([[cos(mu*self.thickness),-self.kt*mu*sin(mu*self.thickness)],
 					   [(1/(self.kt*mu)*sin(mu*self.thickness)),cos(mu*self.thickness)]])
 
