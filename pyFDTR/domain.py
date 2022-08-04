@@ -45,7 +45,7 @@ class Domain:
 		if 'kp' in parameter: self.heat_path[index*2].kp = parameter['kp']
 
 	def set_interface_condu(self, index, g):
-		self.heat_path[index % 2].g = g
+		self.heat_path[ (index * 2) - 1].g = g
 
 	def calc_transfer_matrix(self):
 		matrix = Matrix([ [1,0],
@@ -62,10 +62,10 @@ class Heatpath:
 
 class Layer(Heatpath):
 	
-	cp = 1.0e6  # Cp - Heat capacity 
-	kt = 50 # kappa_trans - Heat conductivity transverse (normal) to the surface
-	kp = 50  # kappa_parallel - Heat conductivity parallel to the surface
-	density = 222.0  #Material density
+	cp = 2.0e6  # Cp - Heat capacity 
+	kt = 25 # kappa_trans - Heat conductivity transverse (normal) to the surface
+	kp = 25  # kappa_parallel - Heat conductivity parallel to the surface
+	density = 110.0  #Material density
 	
 	def set_layer_param(self, cp, density, kt, kp):
 		self.cp = cp

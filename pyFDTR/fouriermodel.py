@@ -5,25 +5,21 @@ import numpy as np
 
 class FourierModelFDTR:
 
-	matrix = None
-	lfunction = None
-
 	def __init__(self,domain,rpump,rprobe):
 		self.domain=domain   # Defined domain (layers + temperature + ..)
 		self.rpump=rpump  	 # Pump beam radius 1/e2
 		self.rprobe=rprobe   # Probe beam radius 1/e2
-
-	def set_frequency(self,frequency=200):
-		self.frequency = frequency
+		self.matrix = None
+		self.lfunction = None
 
 	def tointegrate(self, chi_var):
 		return complex(self.lfunction(chi_var))
 
-
 	def get_phase(self,frequency):
 		self.frequency = frequency  # Set frequency 
-		self.domain.calc_transfer_matrix()  # Calculate layers heat transfer matrix
-		self.matrix = self.domain.matrix
+		if self.matrix == None: 
+			self.domain.calc_transfer_matrix()  # Calculate layers heat transfer matrix
+			self.matrix = self.domain.matrix
 		
 		# Calculate function to be integrated "Inverse Hankel"
 		chi = symbols('chi')
@@ -34,7 +30,7 @@ class FourierModelFDTR:
 		
 		# integration
 		upperbound = 4.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
-		result = complex_quadrature(self.tointegrate,0.0,upperbound)
+		result = complex_quadrature(self.tointegrate,0.0,upperbound,epsrel=1e-5)
 		
 		return 180*np.arctan(np.imag(result[0])/np.real(result[0]))/np.pi
 
