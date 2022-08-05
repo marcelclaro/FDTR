@@ -62,9 +62,11 @@ class Heatpath:
 
 class Layer(Heatpath):
 	
-	cp = 2.0e6  # Cp - Heat capacity 
-	kt = 25 # kappa_trans - Heat conductivity transverse (normal) to the surface
-	kp = 25  # kappa_parallel - Heat conductivity parallel to the surface
+	cp = 2.0  # Cp - Heat capacity 
+	kxx = 0.25 # kappa_trans - Heat conductivity transverse (normal) to the surface
+	kyy = 0.25 # kappa_trans - Heat conductivity transverse (normal) to the surface
+	kxy = 0 
+	kzz = 0.25  # kappa_parallel - Heat conductivity parallel to the surface
 	density = 110.0  #Material density
 	
 	def set_layer_param(self, cp, density, kt, kp):
@@ -79,8 +81,10 @@ class Layer(Heatpath):
 	def update(self):
 		self.cp = self.material.cp
 		self.density = self.material.density
-		self.kt = self.material.kt
-		self.kp = self.material.kp
+		self.kxx = self.material.kxx
+		self.kyy = self.material.kyy
+		self.kxy = self.material.kxy
+		self.kzz = self.material.kzz
 
 
 	def set_layer_param(self, **parameter):
@@ -92,11 +96,12 @@ class Layer(Heatpath):
 
 
 	def getFourier_Matrix(self):
-		chi = symbols('chi')
+		eta = symbols('eta')
+		eps = symbols('eps')
 		omega = symbols('omega')
-		mu = sqrt( (self.kp*chi*chi+complex(0,1)*self.cp*omega)/self.kt )
-		return Matrix([[cosh(mu*self.thickness),-(1/(self.kt*mu))*sinh(mu*self.thickness)],
-					   [-(self.kt*mu)*sinh(mu*self.thickness),cosh(mu*self.thickness)]])
+		mu = sqrt( (self.kxx*eps*eps+self.kzz*eta*eta+2.0*self.kxy*eps*eta+complex(0,1)*self.cp*omega)/self.kzz )
+		return Matrix([[cosh(mu*self.thickness),-(1/(self.kzz*mu))*sinh(mu*self.thickness)],
+					   [-(self.kzz*mu)*sinh(mu*self.thickness),cosh(mu*self.thickness)]])
 
 	def __init__(self, thickness, temperature, material):
 		self.thickness = thickness
@@ -104,8 +109,10 @@ class Layer(Heatpath):
 		self.material = material
 		self.cp = self.material.cp
 		self.density = self.material.density
-		self.kt = self.material.kt
-		self.kp = self.material.kp
+		self.kxx = self.material.kxx
+		self.kyy = self.material.kyy
+		self.kxy = self.material.kxy
+		self.kzz = self.material.kzz
 
 
 class LayerInterface(Heatpath):

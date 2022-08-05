@@ -9,6 +9,12 @@ class Conversion:
 
     def J_gK_to_J_m3K(self, value, density_gm3):
         return value*density_gm3
+    
+    def nm(self, value):
+        return value*1e-7
+
+    def um(self, value):
+        return value*1e-4
 
 
 import scipy
