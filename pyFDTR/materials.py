@@ -98,7 +98,7 @@ class gold(material):
 		self.kxx = 1.0e-2 * polynomial(temperature,69.1593,-0.009147,-4.37555e-06)   #   W/mK
 		self.kyy = self.kxx   #   W/mK
 		self.kxy = 0   #   W/mK
-		self.kzz = self.kxx   #   W/mK
+		self.kzz = 1.0e-2 * polynomial(temperature,69.1593,-0.009147,-4.37555e-06)   #   W/mK
 
 	def __init__(self, temperature):
 		self.temperature = temperature
@@ -106,7 +106,7 @@ class gold(material):
 		self.kxx = 1.0e-2 * polynomial(temperature,69.1593,-0.009147,-4.37555e-06)   #   W/mK
 		self.kyy = self.kxx   #   W/mK
 		self.kxy = 0   #   W/mK
-		self.kzz = self.kxx   #   W/mK
+		self.kzz = 1.0e-2 * polynomial(temperature,69.1593,-0.009147,-4.37555e-06)   #   W/mK
 
 class default_material(material):
 	materialname = 'default'
