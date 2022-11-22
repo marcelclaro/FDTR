@@ -31,18 +31,22 @@ class Domain:
 		self.heat_path.append(LayerInterface(self.temperature,self.heat_path[-1].material,material))
 		self.heat_path.append(Layer(thickness,self.temperature,material(self.temperature)))
 
-	def set_layer_param(self, index, thickness, cp, density, kt, kp):
+	def set_layer_param(self, index, thickness, cp, density, kxx, kyy, kzz, kxy=0):
 		self.heat_path[index*2].thickness = thickness
 		self.heat_path[index*2].cp = cp
 		self.heat_path[index*2].density = density
-		self.heat_path[index*2].kt = kt
-		self.heat_path[index*2].kp = kp
+		self.heat_path[index*2].kxx = kxx
+		self.heat_path[index*2].kyy = kyy
+		self.heat_path[index*2].kzz = kzz
+		self.heat_path[index*2].kxy = kxy
 
 	def set_layer_param(self, index, **parameter):
 		if 'cp' in parameter: self.heat_path[index*2].cp = parameter['cp']
 		if 'density' in parameter: self.heat_path[index*2].density = parameter['density']
-		if 'kt' in parameter: self.heat_path[index*2].kt = parameter['kt']
-		if 'kp' in parameter: self.heat_path[index*2].kp = parameter['kp']
+		if 'kxx' in parameter: self.heat_path[index*2].kxx = parameter['kxx']
+		if 'kyy' in parameter: self.heat_path[index*2].kyy = parameter['kyy']
+		if 'kxy' in parameter: self.heat_path[index*2].kyy = parameter['kxy']
+		if 'kzz' in parameter: self.heat_path[index*2].kzz = parameter['kzz']
 
 	def set_interface_condu(self, index, g):
 		self.heat_path[ (index * 2) - 1].g = g
