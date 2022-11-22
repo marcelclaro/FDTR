@@ -22,7 +22,8 @@ class FourierModelFDTR:
 		return self.lfunction(x,y)
 	
 	def tointegrate_mpmath(self, x):
-		return self.lfunction(x)
+		eps = symbols('eps')
+		return self.lfunction.evalf(15,subs={eps: x})
 
 
 	def tointegrate(self, x):
@@ -52,13 +53,13 @@ class FourierModelFDTR:
 			eps = symbols('eps')
 			omega = symbols('omega')
 			Lintegrand =  (1 / (2.0 * pi) ) * eps * exp( -( (self.rprobe * self.rprobe + self.rpump * self.rpump ) * eps* eps ) / (8) ) * ( - self.matrix[1,1] / self.matrix[1,0] )
-			self.integrand = Lintegrand.subs(eta,0.0)
-			self.integrand = self.integrand.subs(omega,2.0*np.pi*self.frequency)
+			self.integrand = Lintegrand.evalf(100,subs={eta: 0.0})
+			self.integrand = self.integrand.evalf(100,subs={omega: 2.0*np.pi*self.frequency})
 			self.lfunction = lambdify(eps,self.integrand,'numpy')
 			
 			# integration
-			upperbound = 4.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
-			result = complex_quadrature(self.tointegrate,0.0,upperbound,epsrel=1e-7)
+			upperbound = 20.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
+			result = complex_quadrature(self.tointegrate,0.0,upperbound,epsrel=1e-10)
 
 			calc_phase = 180*np.arctan(np.imag(result[0])/np.real(result[0]))/np.pi
 
@@ -90,9 +91,9 @@ class FourierModelFDTR:
 		else: 
 			return calc_phase-180
 
-
 	def get_phase_mpmath(self,frequency):
 		self.frequency = frequency  # Set frequency 
+		mpmath.dps = 15; mpmath.pretty = True
 		if self.matrix == None: 
 			self.domain.calc_transfer_matrix()  # Calculate layers heat transfer matrix
 			self.matrix = self.domain.matrix
@@ -102,12 +103,10 @@ class FourierModelFDTR:
 			eps = symbols('eps')
 			omega = symbols('omega')
 			Lintegrand =  (1 / (2.0 * pi) ) * eps * exp( -( (self.rprobe * self.rprobe + self.rpump * self.rpump ) * eps* eps ) / (8) ) * ( - self.matrix[1,1] / self.matrix[1,0] )
-			self.integrand = Lintegrand.subs(eta,0.0)
-			self.integrand = self.integrand.subs(omega,2.0*np.pi*self.frequency)
-			self.lfunction = lambdify(eps,self.integrand,'math')
-
-			upperbound = 4.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
-
+			self.integrand = Lintegrand.evalf(50,subs={eta: 0})
+			self.lfunction = self.integrand.evalf(50,subs={omega: 2.0*np.pi*self.frequency})
+			
+			upperbound = 400.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
 			result = mpmath.quad(self.tointegrate_mpmath,[0.0, upperbound])
 		else:
 			# Calculate function to be integrated "Inverse Hankel"
