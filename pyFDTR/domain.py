@@ -25,7 +25,7 @@ class Domain:
 	def add_substrate(self, material):
 		if( not self.substrate_defined):
 			if material == None: material=sapphire(self.temperature)
-			self.heat_path.append(Layer(150e-4,self.temperature,material(self.temperature)))
+			self.heat_path.append(Layer(100e-4,self.temperature,material(self.temperature)))
 			self.substrate_defined = True
 		else:
 			print('Substrate already defined!')
