@@ -5,7 +5,7 @@ import numpy as np
 import quadpy
 import mpmath
 from scipy import integrate
-from numba import njit
+
 
 class FourierModelFDTR:
 
