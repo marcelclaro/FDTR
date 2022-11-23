@@ -37,8 +37,11 @@ class Domain:
 
 	def add_toplayer(self, thickness, material):
 		if material == None: material= default_material(self.temperature)
-		self.top_heat_path.append(LayerInterface(self.temperature,self.heat_path[-1].material,material))
 		self.top_heat_path.append(Layer(thickness,self.temperature,material(self.temperature)))
+		if not self.top_heat_path :
+			self.top_heat_path.append(LayerInterface(self.temperature,self.heat_path[-1].material,material))
+		else:
+			self.top_heat_path.append(LayerInterface(self.temperature,self.top_heat_path[-1].material,material))
 
 	def set_layer_param(self, index, thickness, cp, density, kxx, kyy, kzz, kxy=0):
 		self.heat_path[index*2].thickness = thickness
@@ -60,6 +63,9 @@ class Domain:
 	def set_interface_condu(self, index, g):
 		self.heat_path[ (index * 2) - 1].g = g
 
+	def set_top_interface_condu(self, index, g):
+		self.top_heat_path[ (index * 2) - 2].g = g
+
 	def calc_transfer_matrix(self):
 		matrix = Matrix([ [1,0],
 					      [0,1]])
@@ -68,11 +74,11 @@ class Domain:
 		self.matrix = matrix
 
 	def calc_top_transfer_matrix(self):
-		matrix = Matrix([ [1,0],
+		topmatrix = Matrix([ [1,0],
 					      [0,1]])
 		for layer_or_interface in self.top_heat_path:
-			matrix *= layer_or_interface.getFourier_Matrix()
-		self.matrix = matrix
+			topmatrix *= layer_or_interface.getFourier_Matrix()
+		self.topmatrix = topmatrix
 
 
 

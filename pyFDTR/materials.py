@@ -131,6 +131,72 @@ class STO(material):
 		self.kxy = 0   #   W/mK
 		self.kzz = 1.0e-2 * 9.8   #   W/mK
 
+class Air(material):
+	materialname = 'Air'
+	density = 0.001225  #  Density g/cm3
+	mass_mol = 28.97   #  Molar mass in g/mol
+	Tdebye = 0000   ### WRONG!!! #  Debye temperature in K
+
+	def set_temperature(self, temperature):
+		self.temperature = temperature
+		self.cp = 0.000879183
+		self.kxx = 1.0e-2 * 0.0259   #   cm * W/mK
+		self.kyy = self.kxx   #   cm * W/mK
+		self.kxy = 0   #  cm *  W/mK
+		self.kzz = 1.0e-2 * 0.0259   #   cm * W/mK
+
+	def __init__(self, temperature):
+		self.temperature = temperature
+		self.cp = 0.000879183
+		self.kxx = 1.0e-2 * 0.0259   #  cm *  W/mK
+		self.kyy = self.kxx   #  cm *  W/mK
+		self.kxy = 0   #  cm *  W/mK
+		self.kzz = 1.0e-2 * 0.0259   #  cm *  W/mK
+
+class Water(material):
+	materialname = 'Water'
+	density = 1.0   #  Density g/cm3
+	mass_mol = 18.01   #  Molar mass in g/mol
+	Tdebye = 0000      ### WRONG!!! #  Debye temperature in K
+
+	def set_temperature(self, temperature):
+		self.temperature = temperature
+		self.cp = 4.18
+		self.kxx = 1.0e-2 * 0.598   #   W/mK
+		self.kyy = self.kxx   #   W/mK
+		self.kxy = 0   #   W/mK
+		self.kzz = 1.0e-2 * 0.598   #   W/mK
+
+	def __init__(self, temperature):
+		self.temperature = temperature
+		self.cp = 4.18
+		self.kxx = 1.0e-2 * 0.598   #   W/mK
+		self.kyy = self.kxx   #   W/mK
+		self.kxy = 0   #   W/mK
+		self.kzz = 1.0e-2 * 0.598   #   W/mK
+
+class IPA(material):
+	materialname = 'IPA'
+	density = 0.786   #  Density g/cm3
+	mass_mol = 60.1  #  Molar mass in g/mol
+	Tdebye = 0000      ### WRONG!!! #  Debye temperature in K
+
+	def set_temperature(self, temperature):
+		self.temperature = temperature
+		self.cp = 2.10
+		self.kxx = 1.0e-2 * 0.137   #   W/mK
+		self.kyy = self.kxx   #   W/mK
+		self.kxy = 0   #   W/mK
+		self.kzz = 1.0e-2 * 0.137   #   W/mK
+
+	def __init__(self, temperature):
+		self.temperature = temperature
+		self.cp = 2.10
+		self.kxx = 1.0e-2 * 0.137   #   W/mK
+		self.kyy = self.kxx   #   W/mK
+		self.kxy = 0   #   W/mK
+		self.kzz = 1.0e-2 * 0.137   #   W/mK
+
 
 class default_material(material):
 	materialname = 'default'
