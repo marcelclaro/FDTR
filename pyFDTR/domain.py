@@ -8,6 +8,7 @@ class Domain:
 
 	def __init__(self, temperature = 300):
 		self.heat_path = []
+		self.top_heat_path = []
 		self.temperature = temperature
 
 
@@ -16,12 +17,15 @@ class Domain:
 		for layers in self.heat_path:
 			layers.set_temperature(temperature)
 			layers.update()
+		for layers in self.top_heat_path:
+			layers.set_temperature(temperature)
+			layers.update()
 
 
 	def add_substrate(self, material):
 		if( not self.substrate_defined):
 			if material == None: material=sapphire(self.temperature)
-			self.heat_path.append(Layer(0.001,self.temperature,material(self.temperature)))
+			self.heat_path.append(Layer(0.01,self.temperature,material(self.temperature)))
 			self.substrate_defined = True
 		else:
 			print('Substrate already defined!')
@@ -30,6 +34,11 @@ class Domain:
 		if material == None: material= default_material(self.temperature)
 		self.heat_path.append(LayerInterface(self.temperature,self.heat_path[-1].material,material))
 		self.heat_path.append(Layer(thickness,self.temperature,material(self.temperature)))
+
+	def add_toplayer(self, thickness, material):
+		if material == None: material= default_material(self.temperature)
+		self.top_heat_path.append(LayerInterface(self.temperature,self.heat_path[-1].material,material))
+		self.top_heat_path.append(Layer(thickness,self.temperature,material(self.temperature)))
 
 	def set_layer_param(self, index, thickness, cp, density, kxx, kyy, kzz, kxy=0):
 		self.heat_path[index*2].thickness = thickness
@@ -55,6 +64,13 @@ class Domain:
 		matrix = Matrix([ [1,0],
 					      [0,1]])
 		for layer_or_interface in self.heat_path:
+			matrix *= layer_or_interface.getFourier_Matrix()
+		self.matrix = matrix
+
+	def calc_top_transfer_matrix(self):
+		matrix = Matrix([ [1,0],
+					      [0,1]])
+		for layer_or_interface in self.top_heat_path:
 			matrix *= layer_or_interface.getFourier_Matrix()
 		self.matrix = matrix
 
