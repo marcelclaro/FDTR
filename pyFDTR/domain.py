@@ -25,7 +25,7 @@ class Domain:
 	def add_substrate(self, material):
 		if( not self.substrate_defined):
 			if material == None: material=sapphire(self.temperature)
-			self.heat_path.append(Layer(0.01,self.temperature,material(self.temperature)))
+			self.heat_path.append(Layer(150e-4,self.temperature,material(self.temperature)))
 			self.substrate_defined = True
 		else:
 			print('Substrate already defined!')
@@ -79,6 +79,7 @@ class Domain:
 		for layer_or_interface in self.top_heat_path:
 			topmatrix *= layer_or_interface.getFourier_Matrix()
 		self.topmatrix = topmatrix
+
 
 
 

@@ -63,7 +63,7 @@ class FourierModelFDTR:
 					( - self.matrix[1,1] / self.matrix[1,0] )
 			else:
 				Lintegrand =  (1 / (2.0 * pi) ) * eps * exp( -( (self.rprobe * self.rprobe + self.rpump * self.rpump ) * eps* eps ) / (8) ) * \
-					( (-self.matrix[1,1] / self.matrix[1,0]) / (1 - ((self.matrix[1,1]*self.topmatrix[1,0]) / (self.matrix[1,0]*self.topmatrix[0,0])) ))
+					( (-self.matrix[1,1] / self.matrix[1,0]) / (1 + ((self.matrix[1,1]*self.topmatrix[1,0]) / (self.matrix[1,0]*self.topmatrix[0,0])) ))
 
 			self.integrand = Lintegrand.evalf(100,subs={eta: 0.0})
 			self.integrand = self.integrand.evalf(100,subs={omega: 2.0*np.pi*self.frequency})
@@ -127,7 +127,7 @@ class FourierModelFDTR:
 					( - self.matrix[1,1] / self.matrix[1,0] )
 			else:
 				Lintegrand =  (1 / (2.0 * pi) ) * eps * exp( -( (self.rprobe * self.rprobe + self.rpump * self.rpump ) * eps* eps ) / (8) ) * \
-					( (-self.matrix[1,1] / self.matrix[1,0]) / (1 - ((self.matrix[1,1]*self.topmatrix[1,0]) / (self.matrix[1,0]*self.topmatrix[0,0])) ))
+					( (-self.matrix[1,1] / self.matrix[1,0]) / (1 + ((self.matrix[1,1]*self.topmatrix[1,0]) / (self.matrix[1,0]*self.topmatrix[0,0])) ))
 			self.integrand = Lintegrand.evalf(50,subs={eta: 0})
 			self.integrand = self.integrand.evalf(50,subs={omega: 2.0*np.pi*self.frequency})
 			self.lfunction = lambdify(eps,self.integrand,'mpmath')

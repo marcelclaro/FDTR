@@ -197,6 +197,28 @@ class IPA(material):
 		self.kxy = 0   #   W/mK
 		self.kzz = 1.0e-2 * 0.137   #   W/mK
 
+class glass(material):
+	materialname = 'glass'
+	density = 2.5   #  Density g/cm3
+	mass_mol = 60.1  #  Molar mass in g/mol
+	Tdebye = 0000      ### WRONG!!! #  Debye temperature in K
+
+	def set_temperature(self, temperature):
+		self.temperature = temperature
+		self.cp = 1.88
+		self.kxx = 1.0e-2 * 1.31   #   W/mK
+		self.kyy = self.kxx   #   W/mK
+		self.kxy = 0   #   W/mK
+		self.kzz = 1.0e-2 * 1.31   #   W/mK
+
+	def __init__(self, temperature):
+		self.temperature = temperature
+		self.cp = 1.88
+		self.kxx = 1.0e-2 * 1.31   #   W/mK
+		self.kyy = self.kxx   #   W/mK
+		self.kxy = 0   #   W/mK
+		self.kzz = 1.0e-2 * 1.31   #   W/mK
+
 
 class default_material(material):
 	materialname = 'default'
