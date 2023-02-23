@@ -151,9 +151,9 @@ class FourierModelFDTR:
 		calc_phase =  180*mpmath.atan(result.imag/result.real)/mpmath.pi
 	
 		if calc_phase < 0 :
-			return calc_phase
+			return float(calc_phase)
 		else: 
-			return calc_phase-180
+			return float(calc_phase-180)
 
 	def get_phase_scipy(self,frequency):
 		self.frequency = frequency  # Set frequency 
