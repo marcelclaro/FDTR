@@ -2,7 +2,6 @@ from sympy import *
 from .domain import *
 from pyFDTR.util import complex_quadrature
 import numpy as np
-import quadpy
 import mpmath
 from scipy import integrate
 
@@ -34,11 +33,11 @@ class FourierModelFDTR:
 
 
 	def tointegrate2D_real(self, x,y):
-		return np.real(self.lfunction(x,y))
+		return float(np.real(self.lfunction(x,y)))
 
 
 	def tointegrate2D_imag(self, x,y):
-		return np.imag(self.lfunction(x,y))
+		return float(np.imag(self.lfunction(x,y)))
 
 	
 	def get_phase(self,frequency):
@@ -89,14 +88,12 @@ class FourierModelFDTR:
 			#print(upperbound)
 
 			#scheme = quadpy.c2._witherden_vincent.witherden_vincent_21()
-			scheme = quadpy.c2._sommariva.sommariva_51()
 			#scheme = quadpy.c2._burnside.burnside()
-			result = scheme.integrate(self.tointegrate2D,quadpy.c2.rectangle_points([0.0, upperbound], [0.0, upperbound]))
-			result += scheme.integrate(self.tointegrate2D,quadpy.c2.rectangle_points([0.0, upperbound], [0.0, -upperbound]))
-			result += scheme.integrate(self.tointegrate2D,quadpy.c2.rectangle_points([-upperbound,0.0], [0.0 ,upperbound]))
-			result += scheme.integrate(self.tointegrate2D,quadpy.c2.rectangle_points([-upperbound, 0.0 ], [0.0,-upperbound]))
 
-			calc_phase = 180*np.arctan(np.imag(result)/np.real(result))/np.pi
+			result_real = integrate.dblquad(self.tointegrate2D_real,-upperbound, upperbound, -upperbound, upperbound,epsrel=1e-6)
+			result_imag = integrate.dblquad(self.tointegrate2D_imag,-upperbound, upperbound, -upperbound, upperbound,epsrel=1e-6)
+
+			calc_phase = 180*np.arctan(result_imag[0]/result_real[0])/np.pi
 
 		if calc_phase < 0 :
 			return calc_phase
