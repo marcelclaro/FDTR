@@ -1,5 +1,4 @@
 from sympy import *
-from triton import jit
 from .domain import *
 from pyFDTR.util import complex_quadrature
 import numpy as np
@@ -9,6 +8,7 @@ from functools import lru_cache
 import numba
 from numba import njit
 import lmfit
+import copy
 
 
 class Fitting_parameters:
@@ -65,6 +65,14 @@ class FourierModelFDTR:
 					( (-self.matrix[1,1] / self.matrix[1,0]) / (1 + ((self.matrix[1,1]*self.topmatrix[1,0]) / (self.matrix[1,0]*self.topmatrix[0,0])) ))
 
 			self.integrand = Lintegrand.evalf(self.precision,subs={eta: 0.0})
+
+
+			# Remove fitting parameters whose sympy symbols are not in the integrand's free symbols
+			if self.fitting_params is not None:
+				self.fitting_params.parameters = [
+					param for param in self.fitting_params.parameters
+					if param.sympy_symbol in self.integrand.free_symbols
+				]
 			if self.backend == 'numpy':
 				if self.fitting_params is None:
 					self.lfunction = lambdify([eps,omega],self.integrand,'numpy')
@@ -93,6 +101,12 @@ class FourierModelFDTR:
 			omega = symbols('omega')
 			Lintegrand =  (1 / (2.0 * pi)**2 ) * exp( -( (self.rprobe ** 2 + self.rpump ** 2) * (eps**2 + eta**2 )) / (8) ) *  exp(complex(0,1)*eps*self.beamoffset) * ( - self.matrix[1,1] / self.matrix[1,0] )
 			self.integrand = Lintegrand.evalf(self.precision)
+			# Remove fitting parameters whose sympy symbols are not in the integrand's free symbols
+			if self.fitting_params is not None:
+				self.fitting_params.parameters = [
+					param for param in self.fitting_params.parameters
+					if param.sympy_symbol in self.integrand.free_symbols
+				]
 			if self.backend == 'numpy':
 				if self.fitting_params is None:
 					self.lfunction = lambdify([eps,eta,omega],self.integrand,'numpy')
@@ -117,52 +131,51 @@ class FourierModelFDTR:
 		self.lfunction = None
 		self.backend = backend  # Set backend for calculations
 		self.use_jit = jit  # Use JIT compilation if True
-		self.fitting_params = fitting_params
-		self.lmfit_params = None  # Initialize lmfit parameters
+		self.fitting_params = copy.deepcopy(fitting_params) if fitting_params is not None else None
 
 
 		self.update()  # Update the model to calculate the transfer matrix and integrand function
 
 	def tointegrate2D_mpmath(self, x,y):
-		if self.lmfit_params is None:
+		if self.fitting_params.parameters.__len__() == 0:
 			return self.lfunction(x, y, self.omega)
 		else:
-			return self.lfunction(x, y, self.omega, *[self.lmfit_params[key].value for key in self.lmfit_params.valuesdict().keys()])
+			return self.lfunction(x, y, self.omega, *[parameter.value for parameter in self.fitting_params.parameters])
 
 	def tointegrate_mpmath(self, x):
-		if self.lmfit_params is None:
+		if self.fitting_params.parameters.__len__() == 0:
 			return self.lfunction(x, self.omega)
 		else:
 			# If fitting parameters are provided, include them in the function call
 			# This allows for dynamic parameter updates during minimization
-			return self.lfunction(x, self.omega,*[self.lmfit_params[key].value for key in self.lmfit_params.valuesdict().keys()])
+			return self.lfunction(x, self.omega,*[parameter.value for parameter in self.fitting_params.parameters])
 
 
 	def tointegrate(self, x):
-		if self.lmfit_params is None:
+		if self.fitting_params.parameters.__len__() == 0:
 			return complex(self.lfunction(x, self.omega))
 		else:
-			return complex(self.lfunction(x, self.omega,*[self.lmfit_params[key].value for key in self.lmfit_params.valuesdict().keys()]))
+			return complex(self.lfunction(x, self.omega,*[parameter.value for parameter in self.fitting_params.parameters]))
 
 	def tointegrate2D(self, x):
-		if self.lmfit_params is None:
+		if self.fitting_params.parameters.__len__() == 0:
 			return self.lfunction(x[0], x[1], self.omega)
 		else:
-			return self.lfunction(x[0], x[1], self.omega,*[self.lmfit_params[key].value for key in self.lmfit_params.valuesdict().keys()])
+			return self.lfunction(x[0], x[1], self.omega,*[parameter.value for parameter in self.fitting_params.parameters])
 
 
 	def tointegrate2D_real(self, x,y):
-		if self.lmfit_params is None:
+		if self.fitting_params.parameters.__len__() == 0:
 			return float(np.real(self.lfunction(x,y,self.omega)))
 		else:
-			return float(np.real(self.lfunction(x,y,self.omega,*[self.lmfit_params[key].value for key in self.lmfit_params.valuesdict().keys()])))
+			return float(np.real(self.lfunction(x,y,self.omega,*[parameter.value for parameter in self.fitting_params.parameters])))
 
 
 	def tointegrate2D_imag(self, x,y):
-		if self.lmfit_params is None:
+		if self.fitting_params.parameters.__len__() == 0:
 			return float(np.imag(self.lfunction(x,y,self.omega)))
 		else:
-			return float(np.imag(self.lfunction(x,y,self.omega,*[self.lmfit_params[key].value for key in self.lmfit_params.valuesdict().keys()])))
+			return float(np.imag(self.lfunction(x,y,self.omega,*[parameter.value for parameter in self.fitting_params.parameters])))
 
 	def get_phase(self,frequency):
 
@@ -218,26 +231,51 @@ class FourierModelFDTR:
 			parameter.add(param.name, value=param.value, min=param.min, max=param.max)
 		self.lmfit_params = parameter
 
-		# Check if lmfit_params order matches fitting_params order
-		lmfit_keys = list(self.lmfit_params.valuesdict().keys())
-		fitting_param_names = [param.name for param in self.fitting_params.parameters]
-		if lmfit_keys != fitting_param_names:
-			raise ValueError(f"Order mismatch: lmfit_params keys {lmfit_keys} != fitting_params names {fitting_param_names}")
 
 		#Here we define our error function, replace the parameters that you want to vary with params['name'].value
 		def residuals(params, freq, measured):
-			# Update the model's parameters with the current values from params
-			for param in self.fitting_params.parameters:
-				setattr(self, param.name, params[param.name].value)
-				self.lmfit_params[param.name].value = params[param.name].value
+			# Ensure the value is also updated in self.fitting_params.parameters
+			for p in self.fitting_params.parameters:
+				if p.name == param.name:
+					p.value = params[param.name].value
 			phase = []
-			for i, f in enumerate(freq):
-				phase.append(self.get_phase(f))
-			return np.array(phase) - np.array(measured)
+			phase = [self.get_phase(f) for f in freq[range[0]:range[1]]]
+			return np.array(phase) - np.array(measured[range[0]:range[1]])
 
 		out = lmfit.minimize(residuals, self.lmfit_params, args=(experimental_points[range[0]:range[1],0],experimental_points[range[0]:range[1],1]), method=method,max_nfev=max_nfev)
 		
 		return out
+	
+def multimodel_fitting(model_lst,data_lst, method='differential_evolution', range=(0,-1), max_nfev=1000):
+		"""
+		Minimize the difference between the model and experimental data.
+		"""
+		parameter = lmfit.Parameters()
+		for model in model_lst:
+			for param in model.fitting_params.parameters:
+				if param.name not in parameter:
+					parameter.add(param.name, value=param.value, min=param.min, max=param.max)
+
+
+		#Here we define our error function, replace the parameters that you want to vary with params['name'].value
+		def residuals_multi(params, model_lst, data_lst):
+			# Ensure the value is also updated in self.fitting_params.parameters
+			residuals = []
+			for model,data in zip(model_lst,data_lst):
+				for p in model.fitting_params.parameters:
+					if p.name == param.name:
+						p.value = params[param.name].value
+				phase = []
+				for f in data[range[0]:range[1],0]:
+					phase.append(model.get_phase(f))
+				partial_residuals = np.array(phase) - np.array(data[range[0]:range[1],1])
+				residuals.append(partial_residuals)
+			return np.concatenate(residuals)
+
+		out = lmfit.minimize(residuals_multi, parameter, args=(model_lst, data_lst), method=method,max_nfev=max_nfev)
+
+		return out
+
 	# def get_phase_scipy(self,frequency):
 	# 	self.frequency = frequency  # Set frequency 
 	# 	if self.matrix == None: 
