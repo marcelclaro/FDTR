@@ -246,6 +246,26 @@ class FourierModelFDTR:
 		
 		return out
 	
+	def sensitivity_analysis(self, param_name, freq_range=(1e3,1e7),steps=100, change=0.1):
+		"""
+		Perform sensitivity analysis for a specific parameter.
+		"""
+		if self.fitting_params is None:
+			raise ValueError("Fitting parameters are not defined.")
+
+		if param_name not in [param.name for param in self.fitting_params.parameters]:
+			raise ValueError(f"Parameter '{param_name}' not found in fitting parameters.")
+
+		param = next(param for param in self.fitting_params.parameters if param.name == param_name)
+		freq = np.logspace(freq_range[0], freq_range[1], num=steps)
+		ref_value = [self.get_phase(f) for f in freq]
+		old_value = param.value
+		param.value = param.value * (1.0+change)  # Increase the parameter value by 10%
+		changed_value = [self.get_phase(f) for f in freq]
+		param.value = old_value  # Decrease the parameter value by 10%
+
+		return (freq,np.array(changed_value) - np.array(ref_value))
+
 def multimodel_fitting(model_lst,data_lst, method='differential_evolution', range=(0,-1), max_nfev=1000):
 		"""
 		Minimize the difference between the model and experimental data.
