@@ -137,13 +137,13 @@ class FourierModelFDTR:
 		self.update()  # Update the model to calculate the transfer matrix and integrand function
 
 	def tointegrate2D_mpmath(self, x,y):
-		if self.fitting_params.parameters.__len__() == 0:
+		if self.fitting_params is None or self.fitting_params.parameters.__len__() == 0:
 			return self.lfunction(x, y, self.omega)
 		else:
 			return self.lfunction(x, y, self.omega, *[parameter.value for parameter in self.fitting_params.parameters])
 
 	def tointegrate_mpmath(self, x):
-		if self.fitting_params.parameters.__len__() == 0:
+		if self.fitting_params is None or self.fitting_params.parameters.__len__() == 0:
 			return self.lfunction(x, self.omega)
 		else:
 			# If fitting parameters are provided, include them in the function call
@@ -152,27 +152,27 @@ class FourierModelFDTR:
 
 
 	def tointegrate(self, x):
-		if self.fitting_params.parameters.__len__() == 0:
+		if self.fitting_params is None or self.fitting_params.parameters.__len__() == 0:
 			return complex(self.lfunction(x, self.omega))
 		else:
 			return complex(self.lfunction(x, self.omega,*[parameter.value for parameter in self.fitting_params.parameters]))
 
 	def tointegrate2D(self, x):
-		if self.fitting_params.parameters.__len__() == 0:
+		if self.fitting_params is None or self.fitting_params.parameters.__len__() == 0:
 			return self.lfunction(x[0], x[1], self.omega)
 		else:
 			return self.lfunction(x[0], x[1], self.omega,*[parameter.value for parameter in self.fitting_params.parameters])
 
 
 	def tointegrate2D_real(self, x,y):
-		if self.fitting_params.parameters.__len__() == 0:
+		if self.fitting_params is None or self.fitting_params.parameters.__len__() == 0:
 			return float(np.real(self.lfunction(x,y,self.omega)))
 		else:
 			return float(np.real(self.lfunction(x,y,self.omega,*[parameter.value for parameter in self.fitting_params.parameters])))
 
 
 	def tointegrate2D_imag(self, x,y):
-		if self.fitting_params.parameters.__len__() == 0:
+		if self.fitting_params is None or self.fitting_params.parameters.__len__() == 0:
 			return float(np.imag(self.lfunction(x,y,self.omega)))
 		else:
 			return float(np.imag(self.lfunction(x,y,self.omega,*[parameter.value for parameter in self.fitting_params.parameters])))
