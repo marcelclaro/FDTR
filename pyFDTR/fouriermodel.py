@@ -275,9 +275,6 @@ def multimodel_fitting(model_lst,data_lst, method='differential_evolution', rang
 			for param in model.fitting_params.parameters:
 				if param.name not in parameter:
 					parameter.add(param.name, value=param.value, min=param.min, max=param.max)
-					print(f"Adding parameter {param.name} with initial value {param.value}, min {param.min}, max {param.max}")
-
-
 
 		def residuals_multi(params, model_lst, data_lst):
 			# Ensure the value is also updated in self.fitting_params.parameters
@@ -286,7 +283,6 @@ def multimodel_fitting(model_lst,data_lst, method='differential_evolution', rang
 				for p in model.fitting_params.parameters:
 					if p.name in params:
 						p.value = params[p.name].value
-						print(f"Updating parameter {p.name} to value {p.value}")
 				phase = []
 				for f in data[range[0]:range[1],0]:
 					phase.append(model.get_phase(f))
