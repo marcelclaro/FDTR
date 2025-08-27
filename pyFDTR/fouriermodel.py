@@ -257,7 +257,8 @@ class FourierModelFDTR:
 			raise ValueError(f"Parameter '{param_name}' not found in fitting parameters.")
 
 		param = next(param for param in self.fitting_params.parameters if param.name == param_name)
-		freq = np.logspace(freq_range[0], freq_range[1], num=steps)
+		
+		freq = np.logspace(np.log10(freq_range[0]), np.log10(freq_range[1]), num=steps)
 		ref_value = [self.get_phase(f) for f in freq]
 		old_value = param.value
 		param.value = param.value * (1.0+change)  # Increase the parameter value by 10%
