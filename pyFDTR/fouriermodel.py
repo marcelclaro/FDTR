@@ -131,7 +131,7 @@ class FourierModelFDTR:
 		self.lfunction = None
 		self.backend = backend  # Set backend for calculations
 		self.use_jit = jit  # Use JIT compilation if True
-		self.fitting_params = copy.deepcopy(fitting_params) if fitting_params is not None else None
+		self.fitting_params = copy.copy(fitting_params) if fitting_params is not None else None
 
 
 		self.update()  # Update the model to calculate the transfer matrix and integrand function
@@ -275,16 +275,18 @@ def multimodel_fitting(model_lst,data_lst, method='differential_evolution', rang
 			for param in model.fitting_params.parameters:
 				if param.name not in parameter:
 					parameter.add(param.name, value=param.value, min=param.min, max=param.max)
+					print(f"Adding parameter {param.name} with initial value {param.value}, min {param.min}, max {param.max}")
 
 
-		#Here we define our error function, replace the parameters that you want to vary with params['name'].value
+
 		def residuals_multi(params, model_lst, data_lst):
 			# Ensure the value is also updated in self.fitting_params.parameters
 			residuals = []
 			for model,data in zip(model_lst,data_lst):
 				for p in model.fitting_params.parameters:
-					if p.name == param.name:
-						p.value = params[param.name].value
+					if p.name in params:
+						p.value = params[p.name].value
+						print(f"Updating parameter {p.name} to value {p.value}")
 				phase = []
 				for f in data[range[0]:range[1],0]:
 					phase.append(model.get_phase(f))
