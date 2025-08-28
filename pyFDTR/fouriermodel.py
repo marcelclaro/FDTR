@@ -32,7 +32,14 @@ class Fitting_parameters:
 		for param in self.parameters:
 			if param.name == name:
 				return param.sympy_symbol
-
+			
+		raise ValueError(f"Parameter '{name}' not found")
+	
+	def get_value(self, name):
+		for param in self.parameters:
+			if param.name == name:
+				return param.value
+			
 		raise ValueError(f"Parameter '{name}' not found")
 	
 
@@ -266,6 +273,41 @@ class FourierModelFDTR:
 		param.value = old_value  # Decrease the parameter value by 10%
 
 		return (freq,np.array(changed_value) - np.array(ref_value))
+	
+	def sensitivity_plot(self, param_name_lst, freq_range=(1e3,1e7),steps=100, change=0.1):
+		"""
+		Plot sensitivity analysis for a specific parameter.
+		"""
+		import matplotlib.pyplot as plt
+
+		sensitivity = []
+		for param_name in param_name_lst if isinstance(param_name_lst, list) else [param_name_lst]:
+			if self.fitting_params is None:
+				raise ValueError("Fitting parameters are not defined.")
+
+			if param_name not in [param.name for param in self.fitting_params.parameters]:
+				raise ValueError(f"Parameter '{param_name}' not found in fitting parameters.")
+
+			param = next(param for param in self.fitting_params.parameters if param.name == param_name)
+			
+			freq = np.logspace(np.log10(freq_range[0]), np.log10(freq_range[1]), num=steps)
+			ref_value = [self.get_phase(f) for f in freq]
+			old_value = param.value
+			param.value = param.value * (1.0+change)  # Increase the parameter value by 10%
+			changed_value = [self.get_phase(f) for f in freq]
+			param.value = old_value  # Decrease the parameter value by 10%
+			_, sensitivity_par = self.sensitivity_analysis(param_name, freq_range, steps, change)
+			sensitivity.append(sensitivity_par)
+		
+
+		plt.figure()
+		for sensitivity, param_name in zip(sensitivity, param_name_lst if isinstance(param_name_lst, list) else [param_name_lst]):
+			plt.semilogx(freq, sensitivity)
+			plt.legend([str(param_name) for param_name in (param_name_lst if isinstance(param_name_lst, list) else [param_name_lst])])
+		plt.xlabel('Frequency (Hz)')
+		plt.ylabel('Sensitivity (degrees)')
+		plt.grid(True)
+		plt.show()
 
 def multimodel_fitting(model_lst,data_lst, method='differential_evolution', range=(0,-1), max_nfev=1000):
 		"""
