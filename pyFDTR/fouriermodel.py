@@ -26,8 +26,11 @@ class Fitting_parameters:
 
 	def add(self, name, value, min=None, max=None):
 		param = self.Fitting_parameter(name, value, min, max)
+		# Avoid adding duplicate parameter names
+		if any(existing_param.name == name for existing_param in self.parameters):
+			raise ValueError(f"Parameter '{name}' already exists.")
 		self.parameters.append(param)
-
+	
 	def get_parameter(self, name):
 		for param in self.parameters:
 			if param.name == name:
@@ -308,6 +311,8 @@ class FourierModelFDTR:
 		plt.ylabel('Sensitivity (degrees)')
 		plt.grid(True)
 		plt.show()
+
+		
 
 def multimodel_fitting(model_lst,data_lst, method='differential_evolution', range=(0,-1), max_nfev=1000):
 		"""

@@ -53,12 +53,17 @@ class Domain:
 		self.heat_path[index*2].kxy = kxy
 
 	def set_layer_param(self, index, **parameter):
+		valid_params = {'cp', 'density', 'kzz','kxx', 'kyy', 'kxy', 'thickness'}
+		for key in parameter:
+			assert key in valid_params, f"Invalid parameter name: {key}"
+		if 'thickness' in parameter: self.heat_path[index*2].thickness = parameter['thickness']
 		if 'cp' in parameter: self.heat_path[index*2].cp = parameter['cp']
 		if 'density' in parameter: self.heat_path[index*2].density = parameter['density']
 		if 'kxx' in parameter: self.heat_path[index*2].kxx = parameter['kxx']
 		if 'kyy' in parameter: self.heat_path[index*2].kyy = parameter['kyy']
 		if 'kxy' in parameter: self.heat_path[index*2].kyy = parameter['kxy']
 		if 'kzz' in parameter: self.heat_path[index*2].kzz = parameter['kzz']
+		
 
 	def set_interface_condu(self, index, g):
 		self.heat_path[ (index * 2) - 1].g = g

@@ -27,6 +27,7 @@ try:
     from pyFDTR.materials import *
     from pyFDTR.fouriermodel import *
     import lmfit
+    import itertools
 except ImportError as e:
     print(f"Error importing pyFDTR: {e}")
     print("Please ensure pyFDTR is properly installed and in your Python path")
@@ -36,7 +37,7 @@ class FDTRGui:
     def __init__(self, root):
         self.root = root
         self.root.title("FDTR Interactive Interface")
-        self.root.geometry("1200x800")
+        self.root.geometry("1200x900")
         
         # Initialize variables
         self.domain = None
@@ -76,6 +77,7 @@ class FDTRGui:
         # Create tabs
         self.setup_domain_model_tab()
         self.setup_fitting_tab()
+        self.setup_sensitivity_tab()
         
     def setup_domain_model_tab(self):
         """Setup the combined domain and model configuration tab"""
@@ -102,11 +104,12 @@ class FDTRGui:
         ttk.Label(temp_frame, text="Temperature (K):").pack(side='left')
         self.temp_var = tk.StringVar(value="300")
         ttk.Entry(temp_frame, textvariable=self.temp_var, width=10).pack(side='left', padx=(5,10))
-        ttk.Button(temp_frame, text="Create Domain", command=self.create_domain).pack(side='left')
-        
+        self.temp_var.trace_add("write", lambda *args: self.load_substrate_defaults())
+        self.temp_var.trace_add("write", lambda *args: self.load_layer_defaults())
+
         # Substrate
         substrate_frame = ttk.Frame(domain_frame)
-        substrate_frame.pack(fill='x', pady=2)
+        substrate_frame.pack(fill='x', pady=3)
         
         ttk.Label(substrate_frame, text="Substrate Material:").pack(side='left')
         self.substrate_var = tk.StringVar(value="Sapphire")
@@ -115,6 +118,84 @@ class FDTRGui:
         substrate_combo.pack(side='left', padx=(5,10))
         substrate_combo.bind('<<ComboboxSelected>>', self.on_substrate_material_change)
         ttk.Button(substrate_frame, text="Add Substrate", command=self.add_substrate).pack(side='left')
+
+        # Substrate Properties Section
+        substrate_props_frame = ttk.LabelFrame(substrate_frame, text="Substrate Properties", padding=10)
+        substrate_props_frame.pack(fill='x', padx=5, pady=5)
+        
+        sub_props_frame = ttk.Frame(substrate_props_frame)
+        sub_props_frame.pack(fill='x', pady=5)
+        
+        # Substrate thermal conductivity kz
+        ttk.Label(sub_props_frame, text="Substrate kz (W/cmK):").grid(row=0, column=0, sticky='w')
+        self.sub_kz_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_kz_var, width=15).grid(row=0, column=1, padx=2)
+        self.sub_kz_is_fitting = tk.BooleanVar()
+        def sub_kz_fit_callback(*args):
+            if self.sub_kz_is_fitting.get():
+                try:
+                    val = float(self.sub_kz_var.get())
+                    self.sub_kz_min_var.set(str(val * 0.9))
+                    self.sub_kz_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.sub_kz_is_fitting.trace_add('write', sub_kz_fit_callback)
+        ttk.Checkbutton(sub_props_frame, text="Fit", variable=self.sub_kz_is_fitting).grid(row=0, column=2, padx=2)
+        
+        ttk.Label(sub_props_frame, text="Min:").grid(row=0, column=3, sticky='w', padx=(10,2))
+        self.sub_kz_min_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_kz_min_var, width=10).grid(row=0, column=4, padx=2)
+        
+        ttk.Label(sub_props_frame, text="Max:").grid(row=0, column=5, sticky='w', padx=(5,2))
+        self.sub_kz_max_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_kz_max_var, width=10).grid(row=0, column=6, padx=2)
+        
+        # Substrate thermal conductivity kxx
+        ttk.Label(sub_props_frame, text="Substrate kxx (W/cmK):").grid(row=1, column=0, sticky='w')
+        self.sub_kxx_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_kxx_var, width=15).grid(row=1, column=1, padx=2)
+        self.sub_kxx_is_fitting = tk.BooleanVar()
+        def sub_kxx_fit_callback(*args):
+            if self.sub_kxx_is_fitting.get():
+                try:
+                    val = float(self.sub_kxx_var.get())
+                    self.sub_kxx_min_var.set(str(val * 0.9))
+                    self.sub_kxx_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.sub_kxx_is_fitting.trace_add('write', sub_kxx_fit_callback)
+        ttk.Checkbutton(sub_props_frame, text="Fit", variable=self.sub_kxx_is_fitting).grid(row=1, column=2, padx=2)
+        
+        ttk.Label(sub_props_frame, text="Min:").grid(row=1, column=3, sticky='w', padx=(10,2))
+        self.sub_kxx_min_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_kxx_min_var, width=10).grid(row=1, column=4, padx=2)
+        
+        ttk.Label(sub_props_frame, text="Max:").grid(row=1, column=5, sticky='w', padx=(5,2))
+        self.sub_kxx_max_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_kxx_max_var, width=10).grid(row=1, column=6, padx=2)
+        
+        # Substrate heat capacity
+        ttk.Label(sub_props_frame, text="Substrate Cp (J/cm³K):").grid(row=2, column=0, sticky='w')
+        self.sub_cp_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_cp_var, width=15).grid(row=2, column=1, padx=2)
+        self.sub_cp_is_fitting = tk.BooleanVar()
+        def sub_cp_fit_callback(*args):
+            if self.sub_cp_is_fitting.get():
+                try:
+                    val = float(self.sub_cp_var.get())
+                    self.sub_cp_min_var.set(str(val * 0.9))
+                    self.sub_cp_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.sub_cp_is_fitting.trace_add('write', sub_cp_fit_callback)
+        ttk.Checkbutton(sub_props_frame, text="Fit", variable=self.sub_cp_is_fitting).grid(row=2, column=2, padx=2)
+        
+        ttk.Label(sub_props_frame, text="Min:").grid(row=2, column=3, sticky='w', padx=(10,2))
+        self.sub_cp_min_var = tk.StringVar()
+        ttk.Entry(sub_props_frame, textvariable=self.sub_cp_min_var, width=10).grid(row=2, column=4, padx=2)
+        
+        ttk.Label(sub_props_frame, text="Max:").grid(row=2, column=5, sticky='w', padx=(5,2))
+        self.sub_cp_max_var = tk.StringVar()
         
         # Layer Management Section
         layer_frame = ttk.LabelFrame(self.main_frame, text="Layer Management", padding=10)
@@ -129,6 +210,15 @@ class FDTRGui:
         self.thickness_var = tk.StringVar(value="60e-7")
         ttk.Entry(layer_input_frame, textvariable=self.thickness_var, width=15).grid(row=0, column=1, padx=2)
         self.thickness_is_fitting = tk.BooleanVar()
+        def thickness_fit_callback(*args):
+            if self.thickness_is_fitting.get():
+                try:
+                    val = float(eval(self.thickness_var.get()))
+                    self.thickness_min_var.set(str(val * 0.9))
+                    self.thickness_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.thickness_is_fitting.trace_add('write', thickness_fit_callback)
         ttk.Checkbutton(layer_input_frame, text="Fit", variable=self.thickness_is_fitting).grid(row=0, column=2, padx=2)
         
         # Thickness fitting bounds
@@ -155,6 +245,15 @@ class FDTRGui:
         self.interface_cond_var = tk.StringVar(value="5e3")
         ttk.Entry(layer_input_frame, textvariable=self.interface_cond_var, width=15).grid(row=2, column=1, padx=2)
         self.interface_is_fitting = tk.BooleanVar()
+        def interface_fit_callback(*args):
+            if self.interface_is_fitting.get():
+                try:
+                    val = float(eval(self.interface_cond_var.get()))
+                    self.interface_min_var.set(str(val * 0.9))
+                    self.interface_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.interface_is_fitting.trace_add('write', interface_fit_callback)
         ttk.Checkbutton(layer_input_frame, text="Fit", variable=self.interface_is_fitting).grid(row=2, column=2, padx=2)
         
         # Interface fitting bounds
@@ -169,60 +268,10 @@ class FDTRGui:
         # Add Layer button
         ttk.Button(layer_input_frame, text="Add Layer", command=self.add_layer).grid(row=3, column=0, columnspan=2, pady=10, sticky='w')
         
-        # Substrate Properties Section
-        substrate_props_frame = ttk.LabelFrame(self.main_frame, text="Substrate Properties (for fitting)", padding=10)
-        substrate_props_frame.pack(fill='x', padx=5, pady=5)
-        
-        sub_props_frame = ttk.Frame(substrate_props_frame)
-        sub_props_frame.pack(fill='x', pady=5)
-        
-        # Substrate thermal conductivity kz
-        ttk.Label(sub_props_frame, text="Substrate kz (W/cmK):").grid(row=0, column=0, sticky='w')
-        self.sub_kz_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_kz_var, width=15).grid(row=0, column=1, padx=2)
-        self.sub_kz_is_fitting = tk.BooleanVar()
-        ttk.Checkbutton(sub_props_frame, text="Fit", variable=self.sub_kz_is_fitting).grid(row=0, column=2, padx=2)
-        
-        ttk.Label(sub_props_frame, text="Min:").grid(row=0, column=3, sticky='w', padx=(10,2))
-        self.sub_kz_min_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_kz_min_var, width=10).grid(row=0, column=4, padx=2)
-        
-        ttk.Label(sub_props_frame, text="Max:").grid(row=0, column=5, sticky='w', padx=(5,2))
-        self.sub_kz_max_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_kz_max_var, width=10).grid(row=0, column=6, padx=2)
-        
-        # Substrate thermal conductivity kxx
-        ttk.Label(sub_props_frame, text="Substrate kxx (W/cmK):").grid(row=1, column=0, sticky='w')
-        self.sub_kxx_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_kxx_var, width=15).grid(row=1, column=1, padx=2)
-        self.sub_kxx_is_fitting = tk.BooleanVar()
-        ttk.Checkbutton(sub_props_frame, text="Fit", variable=self.sub_kxx_is_fitting).grid(row=1, column=2, padx=2)
-        
-        ttk.Label(sub_props_frame, text="Min:").grid(row=1, column=3, sticky='w', padx=(10,2))
-        self.sub_kxx_min_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_kxx_min_var, width=10).grid(row=1, column=4, padx=2)
-        
-        ttk.Label(sub_props_frame, text="Max:").grid(row=1, column=5, sticky='w', padx=(5,2))
-        self.sub_kxx_max_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_kxx_max_var, width=10).grid(row=1, column=6, padx=2)
-        
-        # Substrate heat capacity
-        ttk.Label(sub_props_frame, text="Substrate Cp (J/cm³K):").grid(row=2, column=0, sticky='w')
-        self.sub_cp_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_cp_var, width=15).grid(row=2, column=1, padx=2)
-        self.sub_cp_is_fitting = tk.BooleanVar()
-        ttk.Checkbutton(sub_props_frame, text="Fit", variable=self.sub_cp_is_fitting).grid(row=2, column=2, padx=2)
-        
-        ttk.Label(sub_props_frame, text="Min:").grid(row=2, column=3, sticky='w', padx=(10,2))
-        self.sub_cp_min_var = tk.StringVar()
-        ttk.Entry(sub_props_frame, textvariable=self.sub_cp_min_var, width=10).grid(row=2, column=4, padx=2)
-        
-        ttk.Label(sub_props_frame, text="Max:").grid(row=2, column=5, sticky='w', padx=(5,2))
-        self.sub_cp_max_var = tk.StringVar()
         ttk.Entry(sub_props_frame, textvariable=self.sub_cp_max_var, width=10).grid(row=2, column=6, padx=2)
         
         # Layer Properties Section
-        layer_props_frame = ttk.LabelFrame(self.main_frame, text="Layer Properties (for fitting)", padding=10)
+        layer_props_frame = ttk.LabelFrame(layer_frame, text="Layer Properties", padding=10)
         layer_props_frame.pack(fill='x', padx=5, pady=5)
         
         layer_props_inner_frame = ttk.Frame(layer_props_frame)
@@ -233,6 +282,15 @@ class FDTRGui:
         self.layer_kz_var = tk.StringVar()
         ttk.Entry(layer_props_inner_frame, textvariable=self.layer_kz_var, width=15).grid(row=0, column=1, padx=2)
         self.layer_kz_is_fitting = tk.BooleanVar()
+        def layer_kz_fit_callback(*args):
+            if self.layer_kz_is_fitting.get():
+                try:
+                    val = float(self.layer_kz_var.get())
+                    self.layer_kz_min_var.set(str(val * 0.9))
+                    self.layer_kz_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.layer_kz_is_fitting.trace_add('write', layer_kz_fit_callback)
         ttk.Checkbutton(layer_props_inner_frame, text="Fit", variable=self.layer_kz_is_fitting).grid(row=0, column=2, padx=2)
         
         ttk.Label(layer_props_inner_frame, text="Min:").grid(row=0, column=3, sticky='w', padx=(10,2))
@@ -248,6 +306,15 @@ class FDTRGui:
         self.layer_kxx_var = tk.StringVar()
         ttk.Entry(layer_props_inner_frame, textvariable=self.layer_kxx_var, width=15).grid(row=1, column=1, padx=2)
         self.layer_kxx_is_fitting = tk.BooleanVar()
+        def layer_kxx_fit_callback(*args):
+            if self.layer_kxx_is_fitting.get():
+                try:
+                    val = float(self.layer_kxx_var.get())
+                    self.layer_kxx_min_var.set(str(val * 0.9))
+                    self.layer_kxx_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.layer_kxx_is_fitting.trace_add('write', layer_kxx_fit_callback)
         ttk.Checkbutton(layer_props_inner_frame, text="Fit", variable=self.layer_kxx_is_fitting).grid(row=1, column=2, padx=2)
         
         ttk.Label(layer_props_inner_frame, text="Min:").grid(row=1, column=3, sticky='w', padx=(10,2))
@@ -263,6 +330,15 @@ class FDTRGui:
         self.layer_cp_var = tk.StringVar()
         ttk.Entry(layer_props_inner_frame, textvariable=self.layer_cp_var, width=15).grid(row=2, column=1, padx=2)
         self.layer_cp_is_fitting = tk.BooleanVar()
+        def layer_cp_fit_callback(*args):
+            if self.layer_cp_is_fitting.get():
+                try:
+                    val = float(self.layer_cp_var.get())
+                    self.layer_cp_min_var.set(str(val * 0.9))
+                    self.layer_cp_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.layer_cp_is_fitting.trace_add('write', layer_cp_fit_callback)
         ttk.Checkbutton(layer_props_inner_frame, text="Fit", variable=self.layer_cp_is_fitting).grid(row=2, column=2, padx=2)
         
         ttk.Label(layer_props_inner_frame, text="Min:").grid(row=2, column=3, sticky='w', padx=(10,2))
@@ -285,6 +361,15 @@ class FDTRGui:
         self.pump_radius_var = tk.StringVar(value="4.05e-4")
         ttk.Entry(beam_frame, textvariable=self.pump_radius_var, width=15).grid(row=0, column=1, padx=2)
         self.pump_radius_is_fitting = tk.BooleanVar()
+        def pump_radius_fit_callback(*args):
+            if self.pump_radius_is_fitting.get():
+                try:
+                    val = float(eval(self.pump_radius_var.get()))
+                    self.pump_radius_min_var.set(str(val * 0.9))
+                    self.pump_radius_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.pump_radius_is_fitting.trace_add('write', pump_radius_fit_callback)
         ttk.Checkbutton(beam_frame, text="Fit", variable=self.pump_radius_is_fitting).grid(row=0, column=2, padx=2)
         
         ttk.Label(beam_frame, text="Min:").grid(row=0, column=3, sticky='w', padx=(10,2))
@@ -299,6 +384,15 @@ class FDTRGui:
         self.probe_radius_var = tk.StringVar(value="4.05e-4")
         ttk.Entry(beam_frame, textvariable=self.probe_radius_var, width=15).grid(row=1, column=1, padx=2)
         self.probe_radius_is_fitting = tk.BooleanVar()
+        def probe_radius_fit_callback(*args):
+            if self.probe_radius_is_fitting.get():
+                try:
+                    val = float(eval(self.probe_radius_var.get()))
+                    self.probe_radius_min_var.set(str(val * 0.9))
+                    self.probe_radius_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.probe_radius_is_fitting.trace_add('write', probe_radius_fit_callback)
         ttk.Checkbutton(beam_frame, text="Fit", variable=self.probe_radius_is_fitting).grid(row=1, column=2, padx=2)
         
         ttk.Label(beam_frame, text="Min:").grid(row=1, column=3, sticky='w', padx=(10,2))
@@ -313,6 +407,15 @@ class FDTRGui:
         self.beam_offset_var = tk.StringVar(value="0")
         ttk.Entry(beam_frame, textvariable=self.beam_offset_var, width=15).grid(row=2, column=1, padx=2)
         self.beam_offset_is_fitting = tk.BooleanVar()
+        def beam_offset_fit_callback(*args):
+            if self.beam_offset_is_fitting.get():
+                try:
+                    val = float(eval(self.beam_offset_var.get()))
+                    self.beam_offset_min_var.set(str(val * 0.9))
+                    self.beam_offset_max_var.set(str(val * 1.1))
+                except Exception:
+                    pass
+        self.beam_offset_is_fitting.trace_add('write', beam_offset_fit_callback)
         ttk.Checkbutton(beam_frame, text="Fit", variable=self.beam_offset_is_fitting).grid(row=2, column=2, padx=2)
         
         ttk.Label(beam_frame, text="Min:").grid(row=2, column=3, sticky='w', padx=(10,2))
@@ -349,7 +452,6 @@ class FDTRGui:
         analysis_frame.pack(fill='x', pady=5)
         
         ttk.Button(analysis_frame, text="Create Model", command=self.create_model).pack(side='left', padx=5)
-        ttk.Button(analysis_frame, text="Calculate Phase", command=self.calculate_phase).pack(side='left', padx=5)
         
         # Model status
         self.model_status_var = tk.StringVar(value="No model created")
@@ -374,69 +476,19 @@ class FDTRGui:
         self.fitting_frame = ttk.Frame(self.notebook)
         self.notebook.add(self.fitting_frame, text="Multi-Model Fitting")
         
-        # Create left and right panels
-        left_panel = ttk.Frame(self.fitting_frame)
-        left_panel.pack(side='left', fill='both', expand=True, padx=(10,5), pady=10)
+        # Create main layout - single column for better organization
+        main_frame = ttk.Frame(self.fitting_frame)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
-        right_panel = ttk.Frame(self.fitting_frame)
-        right_panel.pack(side='right', fill='both', expand=True, padx=(5,10), pady=10)
-        
-        # Left Panel: Models and Datasets
-        # Models section
-        models_frame = ttk.LabelFrame(left_panel, text="Models", padding=10)
-        models_frame.pack(fill='both', expand=True, pady=(0,5))
-        
-        # Model listbox with scrollbar
-        models_list_frame = ttk.Frame(models_frame)
-        models_list_frame.pack(fill='both', expand=True)
-        
-        self.models_listbox = tk.Listbox(models_list_frame, selectmode='multiple')
-        models_scrollbar = ttk.Scrollbar(models_list_frame, orient="vertical", command=self.models_listbox.yview)
-        self.models_listbox.configure(yscrollcommand=models_scrollbar.set)
-        
-        self.models_listbox.pack(side="left", fill="both", expand=True)
-        models_scrollbar.pack(side="right", fill="y")
-        
-        # Model controls
-        models_controls = ttk.Frame(models_frame)
-        models_controls.pack(fill='x', pady=(5,0))
-        
-        ttk.Button(models_controls, text="Delete Model", command=self.delete_model).pack(side='left', padx=(0,5))
-        ttk.Button(models_controls, text="View Model Info", command=self.view_model_info).pack(side='left', padx=5)
-        
-        # Datasets section
-        datasets_frame = ttk.LabelFrame(left_panel, text="Datasets", padding=10)
-        datasets_frame.pack(fill='both', expand=True, pady=(5,0))
-        
-        # Dataset listbox with scrollbar
-        datasets_list_frame = ttk.Frame(datasets_frame)
-        datasets_list_frame.pack(fill='both', expand=True)
-        
-        self.datasets_listbox = tk.Listbox(datasets_list_frame, selectmode='multiple')
-        datasets_scrollbar = ttk.Scrollbar(datasets_list_frame, orient="vertical", command=self.datasets_listbox.yview)
-        self.datasets_listbox.configure(yscrollcommand=datasets_scrollbar.set)
-        
-        self.datasets_listbox.pack(side="left", fill="both", expand=True)
-        datasets_scrollbar.pack(side="right", fill="y")
-        
-        # Dataset controls
-        datasets_controls = ttk.Frame(datasets_frame)
-        datasets_controls.pack(fill='x', pady=(5,0))
-        
-        ttk.Button(datasets_controls, text="Load Dataset", command=self.load_dataset).pack(side='left', padx=(0,5))
-        ttk.Button(datasets_controls, text="Delete Dataset", command=self.delete_dataset).pack(side='left', padx=5)
-        ttk.Button(datasets_controls, text="View Dataset Info", command=self.view_dataset_info).pack(side='left', padx=5)
-        
-        # Right Panel: Parameters and Fitting
-        # All fitting parameters section
-        params_frame = ttk.LabelFrame(right_panel, text="All Fitting Parameters", padding=10)
-        params_frame.pack(fill='both', expand=True, pady=(0,5))
+        # All fitting parameters section - top panel
+        params_frame = ttk.LabelFrame(main_frame, text="All Fitting Parameters", padding=10)
+        params_frame.pack(fill='both', expand=True, pady=(0,10))
         
         # Parameters listbox with scrollbar
         params_list_frame = ttk.Frame(params_frame)
         params_list_frame.pack(fill='both', expand=True)
         
-        self.params_listbox = tk.Listbox(params_list_frame, selectmode='multiple')
+        self.params_listbox = tk.Listbox(params_list_frame, selectmode='single')
         params_scrollbar = ttk.Scrollbar(params_list_frame, orient="vertical", command=self.params_listbox.yview)
         self.params_listbox.configure(yscrollcommand=params_scrollbar.set)
         
@@ -447,36 +499,45 @@ class FDTRGui:
         params_controls = ttk.Frame(params_frame)
         params_controls.pack(fill='x', pady=(5,0))
         
-        ttk.Button(params_controls, text="View Parameter Info", command=self.view_parameter_info).pack(side='left', padx=(0,5))
         ttk.Button(params_controls, text="Modify Parameter", command=self.modify_parameter).pack(side='left', padx=5)
         
-        # Fitting controls section
-        fitting_frame = ttk.LabelFrame(right_panel, text="Model-Dataset Pairing & Fitting", padding=10)
-        fitting_frame.pack(fill='x', pady=(5,0))
+        # Fitting controls section - bottom panel
+        fitting_frame = ttk.LabelFrame(main_frame, text="Model-Dataset Management & Fitting", padding=10)
+        fitting_frame.pack(fill='x', pady=(0,0))
         
         # Model-Dataset pairs management
-        pairs_frame = ttk.LabelFrame(fitting_frame, text="Model-Dataset Pairs", padding=5)
+        pairs_frame = ttk.LabelFrame(fitting_frame, text="Model-Dataset Pairing", padding=5)
         pairs_frame.pack(fill='x', pady=(0,10))
+        
+        # Selection controls for current model/dataset
+        selection_frame = ttk.Frame(pairs_frame)
+        selection_frame.pack(fill='x', pady=5)
+        
+        ttk.Label(selection_frame, text="Model:").grid(row=0, column=0, sticky='w', padx=(0,5))
+        self.model_combo = ttk.Combobox(selection_frame, width=20, state='readonly')
+        self.model_combo.grid(row=0, column=1, padx=5)
+        
+        ttk.Label(selection_frame, text="Dataset:").grid(row=0, column=2, sticky='w', padx=(10,5))
+        self.dataset_combo = ttk.Combobox(selection_frame, width=20, state='readonly')
+        self.dataset_combo.grid(row=0, column=3, padx=5)
+        
+        # Management buttons for selected model/dataset
+        mgmt_buttons_frame = ttk.Frame(pairs_frame)
+        mgmt_buttons_frame.pack(fill='x', pady=5)
+        
+        ttk.Button(mgmt_buttons_frame, text="Load Dataset", command=self.load_dataset).pack(side='left', padx=(0,5))
+        ttk.Button(mgmt_buttons_frame, text="Delete Model", command=self.delete_selected_model).pack(side='left', padx=5)
+        ttk.Button(mgmt_buttons_frame, text="Delete Dataset", command=self.delete_selected_dataset).pack(side='left', padx=5)
+        ttk.Button(mgmt_buttons_frame, text="View Model Info", command=self.view_selected_model_info).pack(side='left', padx=5)
+        ttk.Button(mgmt_buttons_frame, text="View Dataset Info", command=self.view_selected_dataset_info).pack(side='left', padx=5)
         
         # Current pairs listbox
         pairs_list_frame = ttk.Frame(pairs_frame)
         pairs_list_frame.pack(fill='x', pady=5)
         
-        ttk.Label(pairs_list_frame, text="Current Pairs:").pack(anchor='w')
+        ttk.Label(pairs_list_frame, text="Current Model-Dataset Pairs:").pack(anchor='w')
         self.pairs_listbox = tk.Listbox(pairs_list_frame, height=4)
         self.pairs_listbox.pack(fill='x', pady=2)
-        
-        # Add new pair controls
-        add_pair_frame = ttk.Frame(pairs_frame)
-        add_pair_frame.pack(fill='x', pady=5)
-        
-        ttk.Label(add_pair_frame, text="Model:").grid(row=0, column=0, sticky='w', padx=(0,5))
-        self.model_combo = ttk.Combobox(add_pair_frame, width=15, state='readonly')
-        self.model_combo.grid(row=0, column=1, padx=5)
-        
-        ttk.Label(add_pair_frame, text="Dataset:").grid(row=0, column=2, sticky='w', padx=(10,5))
-        self.dataset_combo = ttk.Combobox(add_pair_frame, width=15, state='readonly')
-        self.dataset_combo.grid(row=0, column=3, padx=5)
         
         # Pair management buttons
         pair_buttons_frame = ttk.Frame(pairs_frame)
@@ -491,7 +552,7 @@ class FDTRGui:
         fitting_controls_frame.pack(fill='x', pady=5)
         
         ttk.Label(fitting_controls_frame, text="Method:").pack(side='left')
-        self.fitting_method_var = tk.StringVar(value="nelder")
+        self.fitting_method_var = tk.StringVar(value="leastsq")
         method_combo = ttk.Combobox(fitting_controls_frame, textvariable=self.fitting_method_var,
                                   values=["nelder", "differential_evolution", "leastsq"], width=20)
         method_combo.pack(side='left', padx=(5,10))
@@ -504,53 +565,106 @@ class FDTRGui:
         
         # Initialize model-dataset pairs list
         self.model_dataset_pairs = []
+
+    def setup_sensitivity_tab(self):
+
+        """Setup the sensitivity analysis tab"""
+        self.sensitivity_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.sensitivity_frame, text="Sensitivity Analysis")
         
-        # Update combo boxes with any existing models/datasets
-        self.update_combo_boxes()
+        # Main layout
+        main_frame = ttk.Frame(self.sensitivity_frame)
+        main_frame.pack(fill='both', expand=True, padx=10, pady=10)
         
-    def open_results_window(self, title="FDTR Results", show_fitting_results=False):
-        """Open a new window for displaying results"""
-        results_window = tk.Toplevel(self.root)
-        results_window.title(title)
-        results_window.geometry("900x700")
+        # Model selection
+        model_frame = ttk.LabelFrame(main_frame, text="Select Model", padding=10)
+        model_frame.pack(fill='x', pady=(0,10))
         
-        # Create matplotlib figure
-        fig = Figure(figsize=(10, 6), dpi=100)
-        ax = fig.add_subplot(111)
+        ttk.Label(model_frame, text="Model:").pack(side='left')
+        self.sens_model_combo = ttk.Combobox(model_frame, width=30, state='readonly')
+        self.sens_model_combo.pack(side='left', padx=5)
+
+        # Bind model combobox selection to update parameter list
+        self.sens_model_combo.bind('<<ComboboxSelected>>', self.on_sens_model_selected)
         
-        canvas = FigureCanvasTkAgg(fig, results_window)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        # Parameter selection
+        param_frame = ttk.LabelFrame(main_frame, text="Select Parameter", padding=10)
+        param_frame.pack(fill='both', expand=True, pady=(0,10))
         
-        # Controls frame
-        controls_frame = ttk.Frame(results_window)
-        controls_frame.pack(fill='x', padx=10, pady=5)
+        self.sens_param_listbox = tk.Listbox(param_frame, height=8, selectmode='multiple')
+        self.sens_param_listbox.pack(side='left', fill='both', expand=True)
         
-        ttk.Button(controls_frame, text="Plot Results", 
-                  command=lambda: self.plot_results_in_window(ax, canvas)).pack(side='left', padx=5)
-        ttk.Button(controls_frame, text="Sensitivity Analysis", 
-                  command=lambda: self.sensitivity_analysis_in_window(ax, canvas)).pack(side='left', padx=5)
-        ttk.Button(controls_frame, text="Save Results", command=self.save_results).pack(side='left', padx=5)
-        ttk.Button(controls_frame, text="Clear Plot", 
-                  command=lambda: self.clear_plot_in_window(ax, canvas)).pack(side='left', padx=5)
+        param_scrollbar = ttk.Scrollbar(param_frame, orient="vertical", command=self.sens_param_listbox.yview)
+        self.sens_param_listbox.configure(yscrollcommand=param_scrollbar.set)
+        param_scrollbar.pack(side='right', fill='y')
         
-        # Results text area (only show if fitting results)
-        if show_fitting_results:
-            results_text_frame = ttk.LabelFrame(results_window, text="Fitting Results", padding=10)
-            results_text_frame.pack(fill='x', padx=10, pady=5)
-            
-            results_text = tk.Text(results_text_frame, height=8)
-            results_scrollbar = ttk.Scrollbar(results_text_frame, orient="vertical", command=results_text.yview)
-            results_text.configure(yscrollcommand=results_scrollbar.set)
-            
-            results_text.pack(side="left", fill="both", expand=True)
-            results_scrollbar.pack(side="right", fill="y")
-            
-            return results_window, ax, canvas, results_text
+        # Sensitivity analysis controls
+        controls_frame = ttk.Frame(main_frame)
+        controls_frame.pack(fill='x', pady=5)
         
-        return results_window, ax, canvas, None
+        ttk.Button(controls_frame, text="Run Sensitivity Analysis", command=self.run_sensitivity_analysis).pack(side='left', padx=5)
         
-    def create_domain(self):
+        # Sensitivity analysis status
+        self.sens_status_var = tk.StringVar(value="Select a model and parameter to analyze")
+        ttk.Label(main_frame, textvariable=self.sens_status_var).pack(pady=5)
+
+    def on_sens_model_selected(self, event):
+        """Update parameter listbox when a model is selected in sensitivity tab"""
+        model_name = self.sens_model_combo.get()
+        self.sens_param_listbox.delete(0, tk.END)
+        if model_name and model_name in self.models:
+            model = self.models[model_name]
+            if hasattr(model, 'fitting_params') and hasattr(model.fitting_params, 'parameters'):
+                for param in model.fitting_params.parameters:
+                    self.sens_param_listbox.insert(tk.END, param.name)
+
+    def run_sensitivity_analysis(self):
+        """Run sensitivity analysis on selected model and parameter"""
+        model_name = self.sens_model_combo.get()
+        param_name = self.sens_param_listbox.get(tk.ACTIVE)
+        import matplotlib.pyplot as plt
+        selected_indices = self.sens_param_listbox.curselection()
+        if not model_name or not selected_indices:
+            messagebox.showerror("Error", "Please select both a model and at least one parameter for sensitivity analysis.")
+            return
+        model = self.models.get(model_name, None)
+        if model is None:
+            messagebox.showerror("Error", f"Model '{model_name}' not found.")
+            return
+        param_names = [self.sens_param_listbox.get(i) for i in selected_indices]
+        try:
+            # Perform sensitivity analysis for all selected parameters
+            sensitivities_dict = {}
+            for param_name in param_names:
+                sensitivities = model.sensitivity_analysis(param_name)
+                sensitivities_dict[param_name] = sensitivities
+            # Display results in a new window with all curves
+            result_window = tk.Toplevel(self.root)
+            result_window.title(f"Sensitivity Analysis - {model_name}")
+            result_window.geometry("900x700")
+            # Only show curves in the result window
+            fig = Figure(figsize=(10, 7), dpi=100)
+            ax = fig.add_subplot(111)
+            import matplotlib.pyplot as plt
+            colors = plt.cm.tab10.colors
+            for idx, (param_name, sensitivities) in enumerate(sensitivities_dict.items()):
+                freqs = sensitivities[0]
+                sens_vals = sensitivities[1]
+                ax.semilogx(freqs, sens_vals, label=param_name, color=colors[idx % len(colors)])
+            ax.set_xlabel('Frequency (Hz)')
+            ax.set_ylabel('Sensitivity')
+            ax.set_title(f'Sensitivity Analysis - {model_name}')
+            ax.grid(True)
+            ax.legend()
+            fig.tight_layout()
+            canvas = FigureCanvasTkAgg(fig, result_window)
+            canvas.draw()
+            canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        except Exception as e:
+            messagebox.showerror("Error", f"Error during sensitivity analysis: {str(e)}")
+
+    def add_substrate(self):
+        
         """Create a new domain with specified temperature"""
         try:
             temperature = float(self.temp_var.get())
@@ -561,8 +675,7 @@ class FDTRGui:
             messagebox.showerror("Error", "Invalid temperature value")
         except Exception as e:
             messagebox.showerror("Error", f"Error creating domain: {str(e)}")
-            
-    def add_substrate(self):
+        
         """Add substrate to the domain"""
         if self.domain is None:
             messagebox.showerror("Error", "Please create a domain first")
@@ -572,9 +685,65 @@ class FDTRGui:
             material_name = self.substrate_var.get()
             material_class = self.materials[material_name]
             self.domain.add_substrate(material_class)
+
+                        # Initialize fitting parameters if needed
+            if self.fitting_params is None:
+                self.fitting_params = Fitting_parameters()
+
+            # Add substrate property fitting parameters if selected
+            if self.sub_kz_is_fitting.get() and self.sub_kz_var.get():
+                kz_value = float(eval(self.sub_kz_var.get()))
+                default_name = "sub_kz"
+                param_name = simpledialog.askstring("Parameter Name", 
+                                                   f"Enter name for substrate kz parameter:", 
+                                                   initialvalue=default_name)
+                if param_name:
+                    min_val = float(eval(self.sub_kz_min_var.get())) if self.sub_kz_min_var.get() else None
+                    max_val = float(eval(self.sub_kz_max_var.get())) if self.sub_kz_max_var.get() else None
+                    # Only add if parameter does not exist yet
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, kz_value, min_val, max_val)
+                    # Apply to substrate (index 0 in heat_path)
+                    if len(self.domain.heat_path) > 0:
+                        self.domain.set_layer_param(0, kzz=self.fitting_params.get_parameter(param_name))
+                    messagebox.showinfo("Info", f"Added substrate kz fitting parameter: {param_name}")
+            
+            if self.sub_kxx_is_fitting.get() and self.sub_kxx_var.get():
+                kxx_value = float(eval(self.sub_kxx_var.get()))
+                default_name = "sub_kxx"
+                param_name = simpledialog.askstring("Parameter Name", 
+                                                   f"Enter name for substrate kxx parameter:", 
+                                                   initialvalue=default_name)
+                if param_name:
+                    min_val = float(eval(self.sub_kxx_min_var.get())) if self.sub_kxx_min_var.get() else None
+                    max_val = float(eval(self.sub_kxx_max_var.get())) if self.sub_kxx_max_var.get() else None
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, kxx_value, min_val, max_val)
+                    if len(self.domain.heat_path) > 0:
+                        self.domain.set_layer_param(0, kxx=self.fitting_params.get_parameter(param_name))
+                    messagebox.showinfo("Info", f"Added substrate kxx fitting parameter: {param_name}")
+            
+            if self.sub_cp_is_fitting.get() and self.sub_cp_var.get():
+                cp_value = float(eval(self.sub_cp_var.get()))
+                default_name = "sub_cp"
+                param_name = simpledialog.askstring("Parameter Name", 
+                                                   f"Enter name for substrate cp parameter:", 
+                                                   initialvalue=default_name)
+                if param_name:
+                    min_val = float(eval(self.sub_cp_min_var.get())) if self.sub_cp_min_var.get() else None
+                    max_val = float(eval(self.sub_cp_max_var.get())) if self.sub_cp_max_var.get() else None
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, cp_value, min_val, max_val)
+                    if len(self.domain.heat_path) > 0:
+                        self.domain.set_layer_param(0, cp=self.fitting_params.get_parameter(param_name))
+                    messagebox.showinfo("Info", f"Added substrate cp fitting parameter: {param_name}")
+            
             
             self.update_structure_display()
-            messagebox.showinfo("Success", f"Added {material_name} substrate")
+            self.sub_cp_is_fitting.set(False)
+            self.sub_kz_is_fitting.set(False)
+            self.sub_kxx_is_fitting.set(False)
+            #messagebox.showinfo("Success", f"Added {material_name} substrate")
         except Exception as e:
             messagebox.showerror("Error", f"Error adding substrate: {str(e)}")
             
@@ -592,59 +761,107 @@ class FDTRGui:
             
             # Add the layer (this automatically creates an interface)
             self.domain.add_layer(thickness, material_class)
+
             
             # Get the interface number (number of layers added so far)
-            interface_num = len([layer for layer in self.domain.heat_path if hasattr(layer, 'thickness')])
-            
+            layer_num = len(self.domain.heat_path) // 2  # Each layer addition adds 2 entries (layer + interface)
+           
             # Set the interface conductance for the newly created interface
-            self.domain.set_interface_condu(interface_num-1, conductance)
-            
+            self.domain.set_interface_condu(layer_num, conductance)
+
+
             # Initialize fitting parameters if needed
             if self.fitting_params is None:
                 self.fitting_params = Fitting_parameters()
             
             # Add fitting parameters if checkboxes are checked
-            layer_index = interface_num - 1  # Current layer index
             
             if self.thickness_is_fitting.get():
                 # Get custom parameter name or use default
-                default_name = f"thick_{layer_index}"
+                default_name = f"thick_{layer_num}"
                 param_name = simpledialog.askstring("Parameter Name", 
                                                    f"Enter name for thickness parameter:", 
                                                    initialvalue=default_name)
                 if param_name:
                     min_val = float(eval(self.thickness_min_var.get())) if self.thickness_min_var.get() else None
                     max_val = float(eval(self.thickness_max_var.get())) if self.thickness_max_var.get() else None
-                    self.fitting_params.add(param_name, thickness, min_val, max_val)
-                    # Set layer parameter to use fitting parameter
-                    self.domain.set_layer_param(layer_index, thickness=self.fitting_params.get_parameter(param_name))
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, thickness, min_val, max_val)
+                    # Set layer parameter to use fitting parameter (correct index)
+                    self.domain.set_layer_param(layer_num, thickness=self.fitting_params.get_parameter(param_name))
                     messagebox.showinfo("Info", f"Added thickness fitting parameter: {param_name}")
             
             if self.interface_is_fitting.get():
                 # Get custom parameter name or use default
-                default_name = f"interface_{layer_index}"
+                default_name = f"interface_{layer_num}"
                 param_name = simpledialog.askstring("Parameter Name", 
                                                    f"Enter name for interface conductance parameter:", 
                                                    initialvalue=default_name)
                 if param_name:
                     min_val = float(eval(self.interface_min_var.get())) if self.interface_min_var.get() else None
                     max_val = float(eval(self.interface_max_var.get())) if self.interface_max_var.get() else None
-                    self.fitting_params.add(param_name, conductance, min_val, max_val)
-                    # Update interface with fitting parameter
-                    # Note: This would need to be handled in the domain/model setup
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, conductance, min_val, max_val)
+                    # Set interface conductance to use fitting parameter
+                    self.domain.set_interface_condu(layer_num, self.fitting_params.get_parameter(param_name))
                     messagebox.showinfo("Info", f"Added interface fitting parameter: {param_name}")
+
+            if self.layer_kz_is_fitting.get() and self.layer_kz_var.get():
+                kz_value = float(eval(self.layer_kz_var.get()))
+                default_name = "layer_kz"
+                param_name = simpledialog.askstring("Parameter Name", 
+                                                   f"Enter name for layer kz parameter:", 
+                                                   initialvalue=default_name)
+                if param_name:
+                    min_val = float(eval(self.layer_kz_min_var.get())) if self.layer_kz_min_var.get() else None
+                    max_val = float(eval(self.layer_kz_max_var.get())) if self.layer_kz_max_var.get() else None
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, kz_value, min_val, max_val)
+                    # Apply to last layer
+                    self.domain.set_layer_param(layer_num, kzz=self.fitting_params.get_parameter(param_name))
+                    messagebox.showinfo("Info", f"Added layer kz fitting parameter: {param_name}")
+            
+            if self.layer_kxx_is_fitting.get() and self.layer_kxx_var.get():
+                kxx_value = float(eval(self.layer_kxx_var.get()))
+                default_name = "layer_kxx"
+                param_name = simpledialog.askstring("Parameter Name", 
+                                                   f"Enter name for layer kxx parameter:", 
+                                                   initialvalue=default_name)
+                if param_name:
+                    min_val = float(eval(self.layer_kxx_min_var.get())) if self.layer_kxx_min_var.get() else None
+                    max_val = float(eval(self.layer_kxx_max_var.get())) if self.layer_kxx_max_var.get() else None
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, kxx_value, min_val, max_val)
+                    self.domain.set_layer_param(layer_num, kxx=self.fitting_params.get_parameter(param_name))
+                    messagebox.showinfo("Info", f"Added layer kxx fitting parameter: {param_name}")
+            
+            if self.layer_cp_is_fitting.get() and self.layer_cp_var.get():
+                cp_value = float(eval(self.layer_cp_var.get()))
+                default_name = "layer_cp"
+                param_name = simpledialog.askstring("Parameter Name", 
+                                                   f"Enter name for layer cp parameter:", 
+                                                   initialvalue=default_name)
+                if param_name:
+                    min_val = float(eval(self.layer_cp_min_var.get())) if self.layer_cp_min_var.get() else None
+                    max_val = float(eval(self.layer_cp_max_var.get())) if self.layer_cp_max_var.get() else None
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, cp_value, min_val, max_val)
+                    self.domain.set_layer_param(layer_num, cp=self.fitting_params.get_parameter(param_name))
+                    messagebox.showinfo("Info", f"Added layer cp fitting parameter: {param_name}")
             
             self.update_structure_display()
-            messagebox.showinfo("Success", f"Added {material_name} layer ({thickness} cm) with interface conductance {conductance} W/cm²K")
-            
+            self.update_fitting_parameters()
+            #messagebox.showinfo("Success", f"Added {material_name} layer ({thickness} cm) with interface conductance {conductance} W/cm²K")
             # Clear fitting bounds for next layer
-            self.thickness_min_var.set("")
-            self.thickness_max_var.set("")
-            self.interface_min_var.set("")
-            self.interface_max_var.set("")
+            # self.thickness_min_var.set("")
+            # self.thickness_max_var.set("")
+            # self.interface_min_var.set("")
+            # self.interface_max_var.set("")
             self.thickness_is_fitting.set(False)
             self.interface_is_fitting.set(False)
-            
+            self.layer_kz_is_fitting.set(False)
+            self.layer_kxx_is_fitting.set(False)
+            self.layer_cp_is_fitting.set(False)
         except Exception as e:
             messagebox.showerror("Error", f"Error adding layer: {str(e)}")
             
@@ -677,94 +894,7 @@ class FDTRGui:
             # Initialize fitting parameters if needed
             if self.fitting_params is None:
                 self.fitting_params = Fitting_parameters()
-            
-            # Add substrate property fitting parameters if selected
-            if self.sub_kz_is_fitting.get() and self.sub_kz_var.get():
-                kz_value = float(eval(self.sub_kz_var.get()))
-                default_name = "sub_kz"
-                param_name = simpledialog.askstring("Parameter Name", 
-                                                   f"Enter name for substrate kz parameter:", 
-                                                   initialvalue=default_name)
-                if param_name:
-                    min_val = float(eval(self.sub_kz_min_var.get())) if self.sub_kz_min_var.get() else None
-                    max_val = float(eval(self.sub_kz_max_var.get())) if self.sub_kz_max_var.get() else None
-                    self.fitting_params.add(param_name, kz_value, min_val, max_val)
-                    # Apply to substrate (index 0 in heat_path)
-                    if len(self.domain.heat_path) > 0:
-                        self.domain.set_layer_param(0, kzz=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added substrate kz fitting parameter: {param_name}")
-            
-            if self.sub_kxx_is_fitting.get() and self.sub_kxx_var.get():
-                kxx_value = float(eval(self.sub_kxx_var.get()))
-                default_name = "sub_kxx"
-                param_name = simpledialog.askstring("Parameter Name", 
-                                                   f"Enter name for substrate kxx parameter:", 
-                                                   initialvalue=default_name)
-                if param_name:
-                    min_val = float(eval(self.sub_kxx_min_var.get())) if self.sub_kxx_min_var.get() else None
-                    max_val = float(eval(self.sub_kxx_max_var.get())) if self.sub_kxx_max_var.get() else None
-                    self.fitting_params.add(param_name, kxx_value, min_val, max_val)
-                    if len(self.domain.heat_path) > 0:
-                        self.domain.set_layer_param(0, kxx=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added substrate kxx fitting parameter: {param_name}")
-            
-            if self.sub_cp_is_fitting.get() and self.sub_cp_var.get():
-                cp_value = float(eval(self.sub_cp_var.get()))
-                default_name = "sub_cp"
-                param_name = simpledialog.askstring("Parameter Name", 
-                                                   f"Enter name for substrate cp parameter:", 
-                                                   initialvalue=default_name)
-                if param_name:
-                    min_val = float(eval(self.sub_cp_min_var.get())) if self.sub_cp_min_var.get() else None
-                    max_val = float(eval(self.sub_cp_max_var.get())) if self.sub_cp_max_var.get() else None
-                    self.fitting_params.add(param_name, cp_value, min_val, max_val)
-                    if len(self.domain.heat_path) > 0:
-                        self.domain.set_layer_param(0, cp=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added substrate cp fitting parameter: {param_name}")
-            
-            # Add layer property fitting parameters if selected
-            layer_count = len([layer for layer in self.domain.heat_path if hasattr(layer, 'thickness')])
-            
-            if self.layer_kz_is_fitting.get() and self.layer_kz_var.get() and layer_count > 0:
-                kz_value = float(eval(self.layer_kz_var.get()))
-                default_name = "layer_kz"
-                param_name = simpledialog.askstring("Parameter Name", 
-                                                   f"Enter name for layer kz parameter:", 
-                                                   initialvalue=default_name)
-                if param_name:
-                    min_val = float(eval(self.layer_kz_min_var.get())) if self.layer_kz_min_var.get() else None
-                    max_val = float(eval(self.layer_kz_max_var.get())) if self.layer_kz_max_var.get() else None
-                    self.fitting_params.add(param_name, kz_value, min_val, max_val)
-                    # Apply to last layer
-                    self.domain.set_layer_param(layer_count-1, kzz=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added layer kz fitting parameter: {param_name}")
-            
-            if self.layer_kxx_is_fitting.get() and self.layer_kxx_var.get() and layer_count > 0:
-                kxx_value = float(eval(self.layer_kxx_var.get()))
-                default_name = "layer_kxx"
-                param_name = simpledialog.askstring("Parameter Name", 
-                                                   f"Enter name for layer kxx parameter:", 
-                                                   initialvalue=default_name)
-                if param_name:
-                    min_val = float(eval(self.layer_kxx_min_var.get())) if self.layer_kxx_min_var.get() else None
-                    max_val = float(eval(self.layer_kxx_max_var.get())) if self.layer_kxx_max_var.get() else None
-                    self.fitting_params.add(param_name, kxx_value, min_val, max_val)
-                    self.domain.set_layer_param(layer_count-1, kxx=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added layer kxx fitting parameter: {param_name}")
-            
-            if self.layer_cp_is_fitting.get() and self.layer_cp_var.get() and layer_count > 0:
-                cp_value = float(eval(self.layer_cp_var.get()))
-                default_name = "layer_cp"
-                param_name = simpledialog.askstring("Parameter Name", 
-                                                   f"Enter name for layer cp parameter:", 
-                                                   initialvalue=default_name)
-                if param_name:
-                    min_val = float(eval(self.layer_cp_min_var.get())) if self.layer_cp_min_var.get() else None
-                    max_val = float(eval(self.layer_cp_max_var.get())) if self.layer_cp_max_var.get() else None
-                    self.fitting_params.add(param_name, cp_value, min_val, max_val)
-                    self.domain.set_layer_param(layer_count-1, cp=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added layer cp fitting parameter: {param_name}")
-            
+           
             # Handle beam parameter fitting
             pump_radius = float(eval(self.pump_radius_var.get()))
             probe_radius = float(eval(self.probe_radius_var.get()))
@@ -778,7 +908,8 @@ class FDTRGui:
                 if param_name:
                     min_val = float(eval(self.pump_radius_min_var.get())) if self.pump_radius_min_var.get() else None
                     max_val = float(eval(self.pump_radius_max_var.get())) if self.pump_radius_max_var.get() else None
-                    self.fitting_params.add(param_name, pump_radius, min_val, max_val)
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, pump_radius, min_val, max_val)
                     pump_radius = self.fitting_params.get_parameter(param_name)
                     messagebox.showinfo("Info", f"Added pump radius fitting parameter: {param_name}")
             
@@ -790,7 +921,8 @@ class FDTRGui:
                 if param_name:
                     min_val = float(eval(self.probe_radius_min_var.get())) if self.probe_radius_min_var.get() else None
                     max_val = float(eval(self.probe_radius_max_var.get())) if self.probe_radius_max_var.get() else None
-                    self.fitting_params.add(param_name, probe_radius, min_val, max_val)
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, probe_radius, min_val, max_val)
                     probe_radius = self.fitting_params.get_parameter(param_name)
                     messagebox.showinfo("Info", f"Added probe radius fitting parameter: {param_name}")
             
@@ -802,7 +934,8 @@ class FDTRGui:
                 if param_name:
                     min_val = float(eval(self.beam_offset_min_var.get())) if self.beam_offset_min_var.get() else None
                     max_val = float(eval(self.beam_offset_max_var.get())) if self.beam_offset_max_var.get() else None
-                    self.fitting_params.add(param_name, beam_offset, min_val, max_val)
+                    if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
+                        self.fitting_params.add(param_name, beam_offset, min_val, max_val)
                     beam_offset = self.fitting_params.get_parameter(param_name)
                     messagebox.showinfo("Info", f"Added beam offset fitting parameter: {param_name}")
             
@@ -826,43 +959,39 @@ class FDTRGui:
             
             # Update fitting info display
             self.update_model_list()
+            self.update_fitting_parameters()
+            self.domain = None  # Reset domain to force new creation for next model
+            self.fitting_params = None  # Reset fitting parameters for next model
+            self.update_structure_display()
+            self.pump_radius_is_fitting.set(False)
+            self.probe_radius_is_fitting.set(False)
+            self.beam_offset_is_fitting.set(False)
         except Exception as e:
             messagebox.showerror("Error", f"Error creating model: {str(e)}")
-            
-    def calculate_phase(self):
-        """Calculate phase for the frequency range"""
-        if self.model is None:
-            messagebox.showerror("Error", "Please create a model first")
-            return
-            
-        try:
-            freq_start = float(eval(self.freq_start_var.get()))
-            freq_end = float(eval(self.freq_end_var.get()))
-            freq_step = float(eval(self.freq_step_var.get()))
-            
-            self.frequencies = np.arange(freq_start, freq_end, freq_step)
-            
-            # Calculate phases
-            phases = []
-            for f in self.frequencies:
-                phases.append(self.model.get_phase(f))
-                
-            self.calculated_phases = np.array(phases)
-            
-            # Open results window and plot
-            results_window, ax, canvas, _ = self.open_results_window("Phase Calculation Results")
-            
-            ax.semilogx(self.frequencies, self.calculated_phases, 'b-', label='Calculated')
-            ax.set_xlabel('Frequency (Hz)')
-            ax.set_ylabel('Phase (rad)')
-            ax.set_title('FDTR Phase Response')
-            ax.grid(True)
-            ax.legend()
-            canvas.draw()
-            
-            messagebox.showinfo("Success", f"Calculated phase for {len(self.frequencies)} frequencies")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error calculating phase: {str(e)}")
+
+    def update_fitting_parameters(self):
+        """Update the fitting parameters display"""
+        self.params_listbox.delete(0, tk.END)
+        # Collect all fitting parameters from all models
+        param_models = {}
+        for model_name, model in self.models.items():
+            if hasattr(model, 'fitting_params') and hasattr(model.fitting_params, 'parameters'):
+                for param in model.fitting_params.parameters:
+                    if param.name not in param_models:
+                        param_models[param.name] = {'param': param, 'models': []}
+                    param_models[param.name]['models'].append(model_name)
+        if param_models:
+            self.params_listbox.delete(0, tk.END)
+            for name, info in param_models.items():
+                param = info['param']
+                models = ", ".join(info['models'])
+                self.params_listbox.insert(
+                    tk.END,
+                    f"{name} = {getattr(param, 'value', param)} [{getattr(param, 'min', 'None')}, {getattr(param, 'max', 'None')}] | Models: {models}"
+                )
+        else:
+            self.params_listbox.delete(0, tk.END)
+            self.params_listbox.insert(tk.END, "No fitting parameters found in any model")
             
     def load_experimental_data(self):
         """Load experimental data from file"""
@@ -950,7 +1079,7 @@ class FDTRGui:
         
         # Plot experimental data
         ax.scatter(self.experimental_data[:, 0], self.experimental_data[:, 1], 
-                   color='red', label='Experimental', alpha=0.7)
+                   color='red', label='Experimental', alpha=0.7, s=20)
         
         # Plot calculated data if available
         if hasattr(self, 'calculated_phases') and self.frequencies is not None:
@@ -970,34 +1099,6 @@ class FDTRGui:
         ax.legend()
         canvas.draw()
         
-    def sensitivity_analysis_in_window(self, ax, canvas):
-        """Perform sensitivity analysis in the window"""
-        if self.model is None or self.fitting_params is None:
-            messagebox.showerror("Error", "Please create a model with fitting parameters first")
-            return
-            
-        try:
-            # Get parameter name for sensitivity analysis
-            param_name = simpledialog.askstring("Sensitivity Analysis", 
-                                               "Enter parameter name for sensitivity analysis:")
-            if not param_name:
-                return
-                
-            sensitivity = self.model.sensitivity_analysis(param_name)
-            freqs, sens_vals = sensitivity
-            
-            ax.clear()
-            ax.semilogx(freqs, sens_vals, 'r-', label=f'Sensitivity to {param_name}')
-            ax.set_xlabel('Frequency (Hz)')
-            ax.set_ylabel('Sensitivity')
-            ax.set_title(f'Sensitivity Analysis for {param_name}')
-            ax.grid(True)
-            ax.legend()
-            canvas.draw()
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Error in sensitivity analysis: {str(e)}")
-            
     def clear_plot_in_window(self, ax, canvas):
         """Clear the plot in the window"""
         ax.clear()
@@ -1056,12 +1157,7 @@ class FDTRGui:
                 self.sub_kxx_var.set(str(temp_material.kxx))
                 
             if hasattr(temp_material, 'cp'):
-                # Convert cp to J/cm³K (cp is usually in J/gK, multiply by density)
-                if hasattr(temp_material, 'density'):
-                    cp_volumetric = temp_material.cp * temp_material.density
-                    self.sub_cp_var.set(str(cp_volumetric))
-                else:
-                    self.sub_cp_var.set(str(temp_material.cp))
+                self.sub_cp_var.set(str(temp_material.cp))
                     
         except Exception as e:
             print(f"Note: Could not load all substrate properties for {material_name}: {str(e)}")
@@ -1081,18 +1177,12 @@ class FDTRGui:
             if hasattr(temp_material, 'kzz'):
                 self.layer_kz_var.set(str(temp_material.kzz))
             elif hasattr(temp_material, 'kxx'):
-                self.layer_kz_var.set(str(temp_material.kxx))
-                
+                self.layer_kz_var.set(str(temp_material.kxx))         
             if hasattr(temp_material, 'kxx'):
                 self.layer_kxx_var.set(str(temp_material.kxx))
                 
             if hasattr(temp_material, 'cp'):
-                # Convert cp to J/cm³K (cp is usually in J/gK, multiply by density)
-                if hasattr(temp_material, 'density'):
-                    cp_volumetric = temp_material.cp * temp_material.density
-                    self.layer_cp_var.set(str(cp_volumetric))
-                else:
-                    self.layer_cp_var.set(str(temp_material.cp))
+                self.layer_cp_var.set(str(temp_material.cp))
                     
         except Exception as e:
             print(f"Note: Could not load all layer properties for {material_name}: {str(e)}")
@@ -1103,53 +1193,14 @@ class FDTRGui:
         self.load_layer_defaults()
             
     def update_model_list(self):
-        """Update the model list display"""
-        if hasattr(self, 'models_listbox'):
-            self.models_listbox.delete(0, tk.END)
-            for model_name in self.models.keys():
-                self.models_listbox.insert(tk.END, model_name)
-            self.update_parameter_list()
-            self.update_combo_boxes()
+        """Update the model list display and combo boxes"""
+        self.update_combo_boxes()
     
     def update_dataset_list(self):
-        """Update the dataset list display"""
-        if hasattr(self, 'datasets_listbox'):
-            self.datasets_listbox.delete(0, tk.END)
-            for dataset_name in self.datasets.keys():
-                self.datasets_listbox.insert(tk.END, dataset_name)
-            self.update_combo_boxes()
+        """Update the dataset list display and combo boxes"""
+        self.update_combo_boxes()
     
-    def update_parameter_list(self):
-        """Update the parameter list display with all parameters from all models"""
-        if hasattr(self, 'params_listbox'):
-            self.params_listbox.delete(0, tk.END)
-            all_params = set()
-            
-            # Collect all parameter names from all models
-            for model_name, model in self.models.items():
-                if hasattr(model, 'fitting_params') and model.fitting_params:
-                    try:
-                        # Try different ways to get parameter names
-                        if hasattr(model.fitting_params, 'params'):
-                            # lmfit Parameters object
-                            for param_name in model.fitting_params.params.keys():
-                                all_params.add(f"{model_name}:{param_name}")
-                        elif hasattr(model.fitting_params, 'param_names'):
-                            # Custom param_names attribute
-                            for param in model.fitting_params.param_names:
-                                all_params.add(f"{model_name}:{param}")
-                        elif hasattr(model.fitting_params, '__dict__'):
-                            # Check object attributes
-                            for attr_name, attr_value in model.fitting_params.__dict__.items():
-                                if not attr_name.startswith('_'):
-                                    all_params.add(f"{model_name}:{attr_name}")
-                    except Exception as e:
-                        print(f"Could not access parameters for model {model_name}: {e}")
-            
-            # Add parameters to listbox
-            for param in sorted(all_params):
-                self.params_listbox.insert(tk.END, param)
-    
+
     def load_dataset(self):
         """Load a dataset and store it with a name"""
         filename = filedialog.askopenfilename(
@@ -1182,42 +1233,57 @@ class FDTRGui:
             except Exception as e:
                 messagebox.showerror("Error", f"Error loading data: {str(e)}")
     
-    def delete_model(self):
-        """Delete selected model(s)"""
-        selected = self.models_listbox.curselection()
-        if not selected:
-            messagebox.showwarning("Warning", "Please select model(s) to delete")
+    # Old methods that used deleted listboxes have been removed and replaced with combobox-based methods
+    
+    def delete_selected_model(self):
+        """Delete the currently selected model in the combobox"""
+        model_name = self.model_combo.get()
+        if not model_name:
+            messagebox.showwarning("Warning", "No model selected")
             return
             
-        for index in reversed(selected):  # Delete in reverse order to maintain indices
-            model_name = self.models_listbox.get(index)
-            if messagebox.askyesno("Confirm", f"Delete model '{model_name}'?"):
-                del self.models[model_name]
-        
-        self.update_model_list()
-    
-    def delete_dataset(self):
-        """Delete selected dataset(s)"""
-        selected = self.datasets_listbox.curselection()
-        if not selected:
-            messagebox.showwarning("Warning", "Please select dataset(s) to delete")
+        if model_name not in self.models:
+            messagebox.showerror("Error", f"Model '{model_name}' not found")
             return
             
-        for index in reversed(selected):  # Delete in reverse order to maintain indices
-            dataset_name = self.datasets_listbox.get(index)
-            if messagebox.askyesno("Confirm", f"Delete dataset '{dataset_name}'?"):
-                del self.datasets[dataset_name]
-        
-        self.update_dataset_list()
+        if messagebox.askyesno("Confirm", f"Delete model '{model_name}'?"):
+            del self.models[model_name]
+            # Remove any pairs containing this model
+            self.model_dataset_pairs = [(m, d) for m, d in self.model_dataset_pairs if m != model_name]
+            self.update_model_list()
+            self.update_pairs_display()
+            messagebox.showinfo("Success", f"Model '{model_name}' deleted")
     
-    def view_model_info(self):
-        """View information about selected model"""
-        selected = self.models_listbox.curselection()
-        if not selected:
-            messagebox.showwarning("Warning", "Please select a model to view")
+    def delete_selected_dataset(self):
+        """Delete the currently selected dataset in the combobox"""
+        dataset_name = self.dataset_combo.get()
+        if not dataset_name:
+            messagebox.showwarning("Warning", "No dataset selected")
+            return
+            
+        if dataset_name not in self.datasets:
+            messagebox.showerror("Error", f"Dataset '{dataset_name}' not found")
+            return
+            
+        if messagebox.askyesno("Confirm", f"Delete dataset '{dataset_name}'?"):
+            del self.datasets[dataset_name]
+            # Remove any pairs containing this dataset
+            self.model_dataset_pairs = [(m, d) for m, d in self.model_dataset_pairs if d != dataset_name]
+            self.update_dataset_list()
+            self.update_pairs_display()
+            messagebox.showinfo("Success", f"Dataset '{dataset_name}' deleted")
+    
+    def view_selected_model_info(self):
+        """View information about the currently selected model in the combobox"""
+        model_name = self.model_combo.get()
+        if not model_name:
+            messagebox.showwarning("Warning", "No model selected")
+            return
+            
+        if model_name not in self.models:
+            messagebox.showerror("Error", f"Model '{model_name}' not found")
             return
         
-        model_name = self.models_listbox.get(selected[0])
         model = self.models[model_name]
         
         info_window = tk.Toplevel(self.root)
@@ -1249,14 +1315,17 @@ class FDTRGui:
             except Exception as e:
                 info_text.insert(tk.END, f"  Error accessing parameters: {str(e)}\n")
     
-    def view_dataset_info(self):
-        """View information about selected dataset"""
-        selected = self.datasets_listbox.curselection()
-        if not selected:
-            messagebox.showwarning("Warning", "Please select a dataset to view")
+    def view_selected_dataset_info(self):
+        """View information about the currently selected dataset in the combobox"""
+        dataset_name = self.dataset_combo.get()
+        if not dataset_name:
+            messagebox.showwarning("Warning", "No dataset selected")
+            return
+            
+        if dataset_name not in self.datasets:
+            messagebox.showerror("Error", f"Dataset '{dataset_name}' not found")
             return
         
-        dataset_name = self.datasets_listbox.get(selected[0])
         data = self.datasets[dataset_name]
         
         info_window = tk.Toplevel(self.root)
@@ -1281,35 +1350,6 @@ class FDTRGui:
         for i in range(min(10, len(data))):
             info_text.insert(tk.END, f"{data[i, 0]:.2e}\t{data[i, 1]:.6f}\n")
     
-    def view_parameter_info(self):
-        """View information about selected parameter"""
-        selected = self.params_listbox.curselection()
-        if not selected:
-            messagebox.showwarning("Warning", "Please select a parameter to view")
-            return
-        
-        param_full_name = self.params_listbox.get(selected[0])
-        model_name, param_name = param_full_name.split(':', 1)
-        
-        if model_name in self.models:
-            model = self.models[model_name]
-            if hasattr(model, 'fitting_params') and model.fitting_params:
-                try:
-                    # Try different ways to get parameter info
-                    if hasattr(model.fitting_params, 'params') and param_name in model.fitting_params.params:
-                        param_obj = model.fitting_params.params[param_name]
-                        info_text = f"Model: {model_name}\nParameter: {param_name}\nValue: {param_obj.value}\nMin: {param_obj.min}\nMax: {param_obj.max}\nVary: {param_obj.vary}"
-                    elif hasattr(model.fitting_params, 'get_parameter'):
-                        param_obj = model.fitting_params.get_parameter(param_name)
-                        info_text = f"Model: {model_name}\nParameter: {param_name}\nValue/Object: {param_obj}"
-                    else:
-                        param_obj = getattr(model.fitting_params, param_name, "Not found")
-                        info_text = f"Model: {model_name}\nParameter: {param_name}\nValue/Object: {param_obj}"
-                    
-                    messagebox.showinfo("Parameter Info", info_text)
-                except Exception as e:
-                    messagebox.showerror("Error", f"Cannot access parameter: {str(e)}")
-    
     def modify_parameter(self):
         """Modify parameter bounds or value"""
         selected = self.params_listbox.curselection()
@@ -1317,12 +1357,91 @@ class FDTRGui:
             messagebox.showwarning("Warning", "Please select a parameter to modify")
             return
         
-        param_full_name = self.params_listbox.get(selected[0])
-        model_name, param_name = param_full_name.split(':', 1)
+        param_display = self.params_listbox.get(selected[0])
         
-        messagebox.showinfo("Feature Not Implemented", 
-                          f"Parameter modification for {param_full_name} is not yet implemented.\n"
-                          "You can modify parameters by recreating the model with new settings.")
+        if param_display == "No fitting parameters found in any model":
+            messagebox.showinfo("Parameter Modification", "No fitting parameters available to modify")
+            return
+        
+        # Parse the parameter name from the display string
+        try:
+            param_name = param_display.split(' = ')[0]
+            
+            # Collect all models that use this parameter
+            models_with_param = []
+            for model_name, model in self.models.items():
+                if hasattr(model, 'fitting_params') and model.fitting_params:
+                    for param in model.fitting_params.parameters:
+                        if param.name == param_name:
+                            models_with_param.append((model_name, model))
+
+            if not models_with_param:
+                messagebox.showinfo("Parameter Modification", f"No models found using parameter '{param_name}'")
+                return
+
+            # Get current values from the first model
+            param_obj = models_with_param[0][1].fitting_params.get_value(param_name)
+            current_value = getattr(param_obj, 'value', param_obj)
+            current_min = getattr(param_obj, 'min', '')
+            current_max = getattr(param_obj, 'max', '')
+
+            # Dialog to edit values
+            edit_window = tk.Toplevel(self.root)
+            edit_window.title(f"Edit Parameter: {param_name}")
+            edit_window.geometry("350x220")
+            ttk.Label(edit_window, text=f"Edit '{param_name}' for all models:").pack(pady=8)
+
+            frame = ttk.Frame(edit_window)
+            frame.pack(pady=5, padx=10, fill='x')
+
+            ttk.Label(frame, text="Default Value:").grid(row=0, column=0, sticky='w')
+            value_var = tk.StringVar(value=str(current_value))
+            ttk.Entry(frame, textvariable=value_var, width=18).grid(row=0, column=1, padx=5)
+
+            ttk.Label(frame, text="Lower Bound:").grid(row=1, column=0, sticky='w')
+            min_var = tk.StringVar(value=str(current_min))
+            ttk.Entry(frame, textvariable=min_var, width=18).grid(row=1, column=1, padx=5)
+
+            ttk.Label(frame, text="Upper Bound:").grid(row=2, column=0, sticky='w')
+            max_var = tk.StringVar(value=str(current_max))
+            ttk.Entry(frame, textvariable=max_var, width=18).grid(row=2, column=1, padx=5)
+
+            def apply_changes():
+                try:
+                    new_value = float(eval(value_var.get()))
+                except Exception:
+                    messagebox.showerror("Error", "Invalid default value")
+                    return
+                try:
+                    new_min = float(eval(min_var.get())) if min_var.get() else None
+                except Exception:
+                    messagebox.showerror("Error", "Invalid lower bound")
+                    return
+                try:
+                    new_max = float(eval(max_var.get())) if max_var.get() else None
+                except Exception:
+                    messagebox.showerror("Error", "Invalid upper bound")
+                    return
+
+                # Update parameter in all models
+                for model_name, model in models_with_param:
+                    for param in model.fitting_params.parameters:
+                        if param.name == param_name:
+                            if hasattr(param, 'value'):
+                                param.value = new_value
+                            if hasattr(param, 'min'):
+                                param.min = new_min
+                            if hasattr(param, 'max'):
+                                param.max = new_max
+                self.update_fitting_parameters()
+                messagebox.showinfo("Success", f"Parameter '{param_name}' updated for all models")
+                edit_window.destroy()
+
+            ttk.Button(edit_window, text="Apply", command=apply_changes).pack(pady=12)
+            ttk.Button(edit_window, text="Cancel", command=edit_window.destroy).pack()
+            self.update_fitting_parameters()
+        except Exception as e:
+            messagebox.showerror("Error", f"Error parsing parameter name: {str(e)}")
     
     def start_multimodel_fitting(self):
         """Start multi-model fitting with defined model-dataset pairs"""
@@ -1347,12 +1466,19 @@ class FDTRGui:
                     messagebox.showerror("Error", f"Dataset '{dataset_name}' not found")
                     continue
                 
-                model = self.models[model_name]
-                data = self.datasets[dataset_name]
-                
-                # Perform fitting
-                result = model.minimize(data, method=method)
-                results[f"{model_name}_{dataset_name}"] = result
+
+
+            # Perform fitting                # Prepare models and datasets for multimodel fitting
+            multimodels = []
+            multidatasets = []
+            for mname, dname in self.model_dataset_pairs:
+                multimodels.append(self.models[mname])
+                multidatasets.append(self.datasets[dname])
+            result = multimodel_fitting(multimodels, multidatasets, method=method)
+            # Store the result for all pairs
+            for mname, dname in self.model_dataset_pairs:
+                results[f"{mname}_{dname}"] = result
+                break
             
             if results:
                 # Display results
@@ -1393,9 +1519,9 @@ class FDTRGui:
         
         # Display fitting results
         for result_name, result in results.items():
-            results_text.insert(tk.END, f"{'='*50}\n")
-            results_text.insert(tk.END, f"Results for {result_name}\n")
-            results_text.insert(tk.END, f"{'='*50}\n")
+            # results_text.insert(tk.END, f"{'='*50}\n")
+            # results_text.insert(tk.END, f"Results for {result_name}\n")
+            # results_text.insert(tk.END, f"{'='*50}\n")
             results_text.insert(tk.END, lmfit.fit_report(result))
             results_text.insert(tk.END, f"\n\n")
         
@@ -1410,107 +1536,44 @@ class FDTRGui:
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         
-        # Plot comparison for each model-dataset pair
-        for i, (model_name, dataset_name) in enumerate(zip(model_names, dataset_names)):
-            ax = fig.add_subplot(len(model_names), 1, i+1)
-            
+        # Plot all model-dataset pairs in the same plot, one color per pair
+        ax = fig.add_subplot(111)
+        colors = itertools.cycle(plt.cm.tab10.colors)
+        for model_name, dataset_name in zip(model_names, dataset_names):
+            color = next(colors)
             model = self.models[model_name]
             data = self.datasets[dataset_name]
-            
             # Plot experimental data
-            ax.scatter(data[:, 0], data[:, 1], color='red', label=f'Exp: {dataset_name}', alpha=0.7, s=20)
-            
+            ax.scatter(data[:, 0], data[:, 1], color=color, label=f'Exp: {dataset_name}', alpha=0.7, s=20, marker='o')
             # Plot fitted curve
-            phases_fitted = []
-            for f in data[:, 0]:
-                phases_fitted.append(model.get_phase(f))
-            ax.semilogx(data[:, 0], phases_fitted, 'g-', label=f'Fitted: {model_name}', linewidth=2)
-            
-            ax.set_xlabel('Frequency (Hz)')
-            ax.set_ylabel('Phase (rad)')
-            ax.set_title(f'{model_name} vs {dataset_name}')
-            ax.grid(True)
-            ax.legend()
+            phases_fitted = [model.get_phase(f) for f in data[:, 0]]
+            ax.semilogx(data[:, 0], phases_fitted, color=color, label=f'Fitted: {model_name}', linewidth=2)
+        ax.set_xlabel('Frequency (Hz)')
+        ax.set_ylabel('Phase (rad)')
+        ax.set_title('Multi-Model Fitting Results')
+        ax.grid(True)
+        ax.legend()
         
         fig.tight_layout()
         canvas.draw()
-    
-    # Update the old methods to maintain backward compatibility
-    def load_experimental_data(self):
-        """Load experimental data from file (backward compatibility)"""
-        self.load_dataset()
-    
-    def start_fitting(self):
-        """Start parameter fitting (backward compatibility - single model)"""
-        if self.model is None:
-            messagebox.showerror("Error", "Please create a model first")
-            return
-            
-        if self.experimental_data is None:
-            messagebox.showerror("Error", "Please load experimental data first")
-            return
-            
-        if self.fitting_params is None:
-            messagebox.showerror("Error", "Please add fitting parameters first")
-            return
-            
-        try:
-            method = self.fitting_method_var.get()
-            
-            # Recreate model with fitting parameters
-            pump_radius = float(eval(self.pump_radius_var.get()))
-            probe_radius = float(eval(self.probe_radius_var.get()))
-            beam_offset = float(eval(self.beam_offset_var.get()))
-            backend = self.backend_var.get()
-            
-            self.model = FourierModelFDTR(self.domain, pump_radius, probe_radius, beam_offset,
-                                        fitting_params=self.fitting_params, backend=backend, jit=True)
-            
-            # Perform fitting
-            out = self.model.minimize(self.experimental_data, method=method)
-            
-            # Open results window with fitting results
-            results_window, ax, canvas, results_text = self.open_results_window("Parameter Fitting Results", show_fitting_results=True)
-            
-            # Display fitting results in text area
-            results_text.delete(1.0, tk.END)
-            results_text.insert(tk.END, lmfit.fit_report(out))
-            
-            # Plot comparison
-            ax.scatter(self.experimental_data[:, 0], self.experimental_data[:, 1], 
-                      color='red', label='Experimental', alpha=0.7)
-            
-            # Calculate fitted curve
-            phases_fitted = []
-            for f in self.experimental_data[:, 0]:
-                phases_fitted.append(self.model.get_phase(f))
-            ax.semilogx(self.experimental_data[:, 0], phases_fitted, 'g-', label='Fitted')
-            
-            ax.set_xlabel('Frequency (Hz)')
-
-            ax.set_ylabel('Phase (rad)')
-            ax.set_title('Parameter Fitting Results')
-            ax.grid(True)
-            ax.legend()
-            canvas.draw()
-            
-            messagebox.showinfo("Success", "Parameter fitting completed")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error during fitting: {str(e)}")
 
     def update_combo_boxes(self):
         """Update the model and dataset combo boxes"""
         # Update model combo box
         model_names = list(self.models.keys())
         self.model_combo['values'] = model_names
+        self.sens_model_combo['values'] = model_names
         if model_names and not self.model_combo.get():
             self.model_combo.set(model_names[0])
-        
-        # Update dataset combo box  
+
+
+        # Update dataset combo box
         dataset_names = list(self.datasets.keys())
         self.dataset_combo['values'] = dataset_names
         if dataset_names and not self.dataset_combo.get():
             self.dataset_combo.set(dataset_names[0])
+
+        
     
     def add_model_dataset_pair(self):
         """Add a new model-dataset pair"""
