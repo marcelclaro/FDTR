@@ -13,85 +13,52 @@ This GUI provides an interactive interface for the pyFDTR (Frequency Domain Ther
 ## Installation and Requirements
 
 Before running the GUI, ensure you have the following Python packages installed:
+# FDTR GUI
 
-```bash
-pip install numpy matplotlib scipy sympy mpmath lmfit numba tkinter
-```
+This GUI provides an interactive interface for Frequency Domain Thermoreflectance (FDTR) analysis using the pyFDTR library.
 
-Note: `tkinter` usually comes pre-installed with Python.
+## Features
 
-## Running the GUI
+- Create domains with different temperatures (autocomplete values)
+- Add layers and substrates with various materials
+- Set interface thermal boundary conductances
+- Fit parameters to experimental data
+- Plot results and sensitivity analysis
+- Multi-model and multi-dataset management
 
-To start the GUI, run:
+## Usage
+
+### 1. Domain & Model Setup Tab
+- Set temperature, substrate, and layer properties
+- Add substrate and layers to the domain
+- Set interface conductance and material properties
+- Use the editable combobox to enter a model name
+- Click "Create Model" to create a new model
+
+### 2. Multi-Model Fitting Tab
+- Manage multiple models and datasets
+- Pair models with datasets for fitting
+- Start fitting using different methods
+
+### 3. Model Analysis Tab
+- Select a model and parameters for sensitivity analysis
+- Plot phase vs frequency and sensitivity curves
+
+## Notes
+
+- The GUI supports multiple models and datasets
+
+## Requirements
+
+- Python 3.x
+- pyFDTR library
+- tkinter, matplotlib, numpy
+
+## Running
 
 ```bash
 python3 fdtr_gui.py
 ```
-
-## Usage Guide
-
-### 1. Domain Setup Tab
-
-**Create Domain:**
-1. Enter the temperature in Kelvin (default: 300K)
-2. Click "Create Domain"
-
-**Add Substrate:**
-1. Select a material from the dropdown (default: Sapphire)
-2. Click "Add Substrate"
-
-**Add Layers:**
-1. Enter layer thickness in cm (e.g., 60e-7 for 60 nm)
-2. Select layer material from dropdown
-3. Click "Add Layer"
-
-**Set Interface Conductance:**
-1. Enter interface number (starting from 1)
-2. Enter thermal boundary conductance in W/cm²K
-3. Click "Set Interface"
-
-The current structure will be displayed in the text area below.
-
-### 2. Model Setup Tab
-
-**Configure Beam Parameters:**
-1. Set pump radius (cm)
-2. Set probe radius (cm) 
-3. Set beam offset (cm, 0 for no offset)
-4. Choose backend (numpy for speed, mpmath for precision)
-5. Click "Create Model"
-
-**Set Frequency Range:**
-1. Enter start frequency (Hz)
-2. Enter end frequency (Hz)
-3. Enter step size (Hz)
-4. Click "Calculate Phase" to compute the model response
-
-### 3. Parameter Fitting Tab
-
-**Load Experimental Data:**
-1. Click "Load Data File"
-2. Select a text file with frequency and phase data
-3. The file should have headers on the first 2 lines
-
-**Add Fitting Parameters:**
-1. Enter parameter name (e.g., 'kz', 'thick')
-2. Enter initial value
-3. Enter minimum and maximum bounds (optional)
-4. Click "Add Parameter"
-
-**Start Fitting:**
-1. Select fitting method (nelder, differential_evolution, leastsq)
-2. Click "Start Fitting"
-3. Results will appear in the text area below
-
-### 4. Results Tab
-
-**Plotting:**
-- "Plot Results": Shows experimental data vs calculated/fitted results
-- "Sensitivity Analysis": Analyzes parameter sensitivity (enter parameter name when prompted)
-- "Save Results": Export calculated data to text file
-- "Clear Plot": Clear the current plot
 
 ## Available Materials
 
@@ -125,7 +92,7 @@ The GUI includes the following predefined materials:
 
 3. **Parameter Fitting Tab:**
    - Load experimental data file
-   - Add fitting parameter 'kz' with value 0.40, min 0.10, max 0.70
+   - (Optional) Edit fitting parameter 'kz' with value 0.40, min 0.10, max 0.70
    - Start fitting with 'nelder' method
 
 4. **Results Tab:**

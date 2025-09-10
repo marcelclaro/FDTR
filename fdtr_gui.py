@@ -92,7 +92,17 @@ class FDTRGui:
         
         # Use the domain_model_frame as the main frame
         self.main_frame = self.domain_model_frame
-        
+        # Add editable combobox for model name and update button at the top
+        top_frame = ttk.Frame(self.main_frame)
+        top_frame.pack(fill='x', padx=5, pady=5)
+        ttk.Label(top_frame, text="Model Name:").pack(side='left')
+        self.model_name_var = tk.StringVar()
+        self.model_name_combo = ttk.Combobox(top_frame, textvariable=self.model_name_var, width=25)
+        self.model_name_combo.pack(side='left', padx=5)
+        self.model_name_combo['values'] = list(self.models.keys())
+        self.model_name_combo.bind('<<ComboboxSelected>>', self.on_model_name_selected)
+        #ttk.Button(top_frame, text="Update Model Parameters", command=self.update_model_parameters).pack(side='left', padx=10)
+            
         # Domain Setup Section
         domain_frame = ttk.LabelFrame(self.main_frame, text="Domain Setup", padding=10)
         domain_frame.pack(fill='x', padx=5, pady=5)
@@ -231,7 +241,8 @@ class FDTRGui:
         self.thickness_max_var = tk.StringVar()
         thickness_max_entry = ttk.Entry(layer_input_frame, textvariable=self.thickness_max_var, width=10)
         thickness_max_entry.grid(row=0, column=6, padx=2)
-        
+
+
         # Material
         ttk.Label(layer_input_frame, text="Material:").grid(row=1, column=0, sticky='w')
         self.layer_material_var = tk.StringVar(value="Gold")
@@ -349,6 +360,10 @@ class FDTRGui:
         self.layer_cp_max_var = tk.StringVar()
         ttk.Entry(layer_props_inner_frame, textvariable=self.layer_cp_max_var, width=10).grid(row=2, column=6, padx=2)
         
+        # Add as Top Layer checkbox
+        self.add_top_layer_var = tk.BooleanVar()
+        ttk.Checkbutton(layer_input_frame, text="Add as Top Transparent Layer", variable=self.add_top_layer_var).grid(row=3, column=2, padx=10)
+        
         # Model Parameters Section
         model_frame = ttk.LabelFrame(self.main_frame, text="Model Parameters", padding=10)
         model_frame.pack(fill='x', padx=5, pady=5)
@@ -430,23 +445,7 @@ class FDTRGui:
         self.backend_var = tk.StringVar(value="numpy")
         ttk.Combobox(beam_frame, textvariable=self.backend_var, 
                     values=["numpy", "mpmath"], width=15).grid(row=3, column=1, padx=2)
-        
-        # Frequency range
-        freq_frame = ttk.Frame(model_frame)
-        freq_frame.pack(fill='x', pady=5)
-        
-        ttk.Label(freq_frame, text="Freq Start (Hz):").grid(row=0, column=0, sticky='w')
-        self.freq_start_var = tk.StringVar(value="1e3")
-        ttk.Entry(freq_frame, textvariable=self.freq_start_var, width=15).grid(row=0, column=1, padx=5)
-        
-        ttk.Label(freq_frame, text="Freq End (Hz):").grid(row=0, column=2, sticky='w', padx=(10,0))
-        self.freq_end_var = tk.StringVar(value="40e6")
-        ttk.Entry(freq_frame, textvariable=self.freq_end_var, width=15).grid(row=0, column=3, padx=5)
-        
-        ttk.Label(freq_frame, text="Freq Step (Hz):").grid(row=1, column=0, sticky='w')
-        self.freq_step_var = tk.StringVar(value="10e3")
-        ttk.Entry(freq_frame, textvariable=self.freq_step_var, width=15).grid(row=1, column=1, padx=5)
-        
+               
         # Analysis controls (without fitting controls)
         analysis_frame = ttk.Frame(model_frame)
         analysis_frame.pack(fill='x', pady=5)
@@ -457,16 +456,16 @@ class FDTRGui:
         self.model_status_var = tk.StringVar(value="No model created")
         ttk.Label(model_frame, textvariable=self.model_status_var).pack(pady=5)
         
-        # Current Structure Display
-        structure_frame = ttk.LabelFrame(self.main_frame, text="Current Structure", padding=10)
-        structure_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        # # Current Structure Display
+        # structure_frame = ttk.LabelFrame(self.main_frame, text="Current Structure", padding=10)
+        # structure_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
-        self.structure_text = tk.Text(structure_frame, height=8, width=50)
-        scrollbar = ttk.Scrollbar(structure_frame, orient="vertical", command=self.structure_text.yview)
-        self.structure_text.configure(yscrollcommand=scrollbar.set)
+        # self.structure_text = tk.Text(structure_frame, height=8, width=50)
+        # scrollbar = ttk.Scrollbar(structure_frame, orient="vertical", command=self.structure_text.yview)
+        # self.structure_text.configure(yscrollcommand=scrollbar.set)
         
-        self.structure_text.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        # self.structure_text.pack(side="left", fill="both", expand=True)
+        # scrollbar.pack(side="right", fill="y")
         
         # Initialize material properties with default values
         self.load_material_defaults()
@@ -568,9 +567,9 @@ class FDTRGui:
 
     def setup_sensitivity_tab(self):
 
-        """Setup the sensitivity analysis tab"""
+        """Setup the model analysis tab"""
         self.sensitivity_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.sensitivity_frame, text="Sensitivity Analysis")
+        self.notebook.add(self.sensitivity_frame, text="Model Analysis")
         
         # Main layout
         main_frame = ttk.Frame(self.sensitivity_frame)
@@ -583,6 +582,29 @@ class FDTRGui:
         ttk.Label(model_frame, text="Model:").pack(side='left')
         self.sens_model_combo = ttk.Combobox(model_frame, width=30, state='readonly')
         self.sens_model_combo.pack(side='left', padx=5)
+
+        # Add button to plot phase in specified frequency range
+        plot_phase_btn = ttk.Button(model_frame, text="Plot Phase in Frequency Range", command=self.plot_phase_in_freq_range)
+        plot_phase_btn.pack(side='left', padx=10)
+
+
+
+        # Frequency range
+        freq_frame = ttk.Frame(self.sensitivity_frame)
+        freq_frame.pack(fill='x', pady=5)
+        
+        ttk.Label(freq_frame, text="Freq Start (Hz):").grid(row=0, column=0, sticky='w')
+        self.freq_start_var = tk.StringVar(value="1e3")
+        ttk.Entry(freq_frame, textvariable=self.freq_start_var, width=15).grid(row=0, column=1, padx=5)
+        
+        ttk.Label(freq_frame, text="Freq End (Hz):").grid(row=0, column=2, sticky='w', padx=(10,0))
+        self.freq_end_var = tk.StringVar(value="40e6")
+        ttk.Entry(freq_frame, textvariable=self.freq_end_var, width=15).grid(row=0, column=3, padx=5)
+        
+        ttk.Label(freq_frame, text="Points:").grid(row=1, column=0, sticky='w')
+        self.freq_step_var = tk.StringVar(value="200")
+        ttk.Entry(freq_frame, textvariable=self.freq_step_var, width=15).grid(row=1, column=1, padx=5)
+ 
 
         # Bind model combobox selection to update parameter list
         self.sens_model_combo.bind('<<ComboboxSelected>>', self.on_sens_model_selected)
@@ -607,6 +629,38 @@ class FDTRGui:
         # Sensitivity analysis status
         self.sens_status_var = tk.StringVar(value="Select a model and parameter to analyze")
         ttk.Label(main_frame, textvariable=self.sens_status_var).pack(pady=5)
+
+    def plot_phase_in_freq_range(self):
+        """Plot phase vs frequency for selected model in specified range"""
+        model_name = self.sens_model_combo.get()
+        if not model_name or model_name not in self.models:
+            messagebox.showerror("Error", "Please select a valid model to plot.")
+            return
+        try:
+            freq_start = float(eval(self.freq_start_var.get()))
+            freq_end = float(eval(self.freq_end_var.get()))
+            points = int(float(eval(self.freq_step_var.get())))
+            freqs = np.logspace(np.log10(freq_start), np.log10(freq_end), points)
+            model = self.models[model_name]
+            phases = [model.get_phase(f) for f in freqs]
+            # Show plot in a new window
+            plot_window = tk.Toplevel(self.root)
+            plot_window.title(f"Phase vs Frequency - {model_name}")
+            plot_window.geometry("900x700")
+            fig = Figure(figsize=(10, 7), dpi=100)
+            ax = fig.add_subplot(111)
+            ax.semilogx(freqs, phases, 'b-', label='Phase')
+            ax.set_xlabel('Frequency (Hz)')
+            ax.set_ylabel('Phase (rad)')
+            ax.set_title(f'Phase vs Frequency - {model_name}')
+            ax.grid(True)
+            ax.legend()
+            fig.tight_layout()
+            canvas = FigureCanvasTkAgg(fig, plot_window)
+            canvas.draw()
+            canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        except Exception as e:
+            messagebox.showerror("Error", f"Error plotting phase: {str(e)}")
 
     def on_sens_model_selected(self, event):
         """Update parameter listbox when a model is selected in sensitivity tab"""
@@ -636,7 +690,8 @@ class FDTRGui:
             # Perform sensitivity analysis for all selected parameters
             sensitivities_dict = {}
             for param_name in param_names:
-                sensitivities = model.sensitivity_analysis(param_name)
+                sensitivities = model.sensitivity_analysis(param_name,freq_range=(float(eval(self.freq_start_var.get())),
+                                                                           float(eval(self.freq_end_var.get()))),steps=int(eval(self.freq_step_var.get())))
                 sensitivities_dict[param_name] = sensitivities
             # Display results in a new window with all curves
             result_window = tk.Toplevel(self.root)
@@ -669,7 +724,7 @@ class FDTRGui:
         try:
             temperature = float(self.temp_var.get())
             self.domain = Domain(temperature)
-            self.update_structure_display()
+            #self.update_structure_display()
 
         except ValueError:
             messagebox.showerror("Error", "Invalid temperature value")
@@ -706,7 +761,6 @@ class FDTRGui:
                     # Apply to substrate (index 0 in heat_path)
                     if len(self.domain.heat_path) > 0:
                         self.domain.set_layer_param(0, kzz=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added substrate kz fitting parameter: {param_name}")
             
             if self.sub_kxx_is_fitting.get() and self.sub_kxx_var.get():
                 kxx_value = float(eval(self.sub_kxx_var.get()))
@@ -721,7 +775,6 @@ class FDTRGui:
                         self.fitting_params.add(param_name, kxx_value, min_val, max_val)
                     if len(self.domain.heat_path) > 0:
                         self.domain.set_layer_param(0, kxx=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added substrate kxx fitting parameter: {param_name}")
             
             if self.sub_cp_is_fitting.get() and self.sub_cp_var.get():
                 cp_value = float(eval(self.sub_cp_var.get()))
@@ -736,10 +789,9 @@ class FDTRGui:
                         self.fitting_params.add(param_name, cp_value, min_val, max_val)
                     if len(self.domain.heat_path) > 0:
                         self.domain.set_layer_param(0, cp=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added substrate cp fitting parameter: {param_name}")
             
             
-            self.update_structure_display()
+            #self.update_structure_display()
             self.sub_cp_is_fitting.set(False)
             self.sub_kz_is_fitting.set(False)
             self.sub_kxx_is_fitting.set(False)
@@ -758,16 +810,21 @@ class FDTRGui:
             material_name = self.layer_material_var.get()
             material_class = self.materials[material_name]
             conductance = float(eval(self.interface_cond_var.get()))
-            
-            # Add the layer (this automatically creates an interface)
-            self.domain.add_layer(thickness, material_class)
-
-            
-            # Get the interface number (number of layers added so far)
-            layer_num = len(self.domain.heat_path) // 2  # Each layer addition adds 2 entries (layer + interface)
-           
-            # Set the interface conductance for the newly created interface
-            self.domain.set_interface_condu(layer_num, conductance)
+            # Check if adding as top layer
+            if self.add_top_layer_var.get():
+                # Use domain.add_toplayer and set_top_interface_condu
+                if hasattr(self.domain, 'add_toplayer'):
+                    self.domain.add_toplayer(thickness, material_class)
+                if hasattr(self.domain, 'set_top_interface_condu'):
+                    # Use 1 for interface number, as in your example
+                    self.domain.set_top_interface_condu(1, conductance)
+            else:
+                # Add the layer (this automatically creates an interface)
+                self.domain.add_layer(thickness, material_class)
+                # Get the interface number (number of layers added so far)
+                layer_num = len(self.domain.heat_path) // 2  # Each layer addition adds 2 entries (layer + interface)
+                # Set the interface conductance for the newly created interface
+                self.domain.set_interface_condu(layer_num, conductance)
 
 
             # Initialize fitting parameters if needed
@@ -789,7 +846,6 @@ class FDTRGui:
                         self.fitting_params.add(param_name, thickness, min_val, max_val)
                     # Set layer parameter to use fitting parameter (correct index)
                     self.domain.set_layer_param(layer_num, thickness=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added thickness fitting parameter: {param_name}")
             
             if self.interface_is_fitting.get():
                 # Get custom parameter name or use default
@@ -804,7 +860,6 @@ class FDTRGui:
                         self.fitting_params.add(param_name, conductance, min_val, max_val)
                     # Set interface conductance to use fitting parameter
                     self.domain.set_interface_condu(layer_num, self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added interface fitting parameter: {param_name}")
 
             if self.layer_kz_is_fitting.get() and self.layer_kz_var.get():
                 kz_value = float(eval(self.layer_kz_var.get()))
@@ -819,7 +874,6 @@ class FDTRGui:
                         self.fitting_params.add(param_name, kz_value, min_val, max_val)
                     # Apply to last layer
                     self.domain.set_layer_param(layer_num, kzz=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added layer kz fitting parameter: {param_name}")
             
             if self.layer_kxx_is_fitting.get() and self.layer_kxx_var.get():
                 kxx_value = float(eval(self.layer_kxx_var.get()))
@@ -833,7 +887,6 @@ class FDTRGui:
                     if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
                         self.fitting_params.add(param_name, kxx_value, min_val, max_val)
                     self.domain.set_layer_param(layer_num, kxx=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added layer kxx fitting parameter: {param_name}")
             
             if self.layer_cp_is_fitting.get() and self.layer_cp_var.get():
                 cp_value = float(eval(self.layer_cp_var.get()))
@@ -847,9 +900,8 @@ class FDTRGui:
                     if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
                         self.fitting_params.add(param_name, cp_value, min_val, max_val)
                     self.domain.set_layer_param(layer_num, cp=self.fitting_params.get_parameter(param_name))
-                    messagebox.showinfo("Info", f"Added layer cp fitting parameter: {param_name}")
             
-            self.update_structure_display()
+            #self.update_structure_display()
             self.update_fitting_parameters()
             #messagebox.showinfo("Success", f"Added {material_name} layer ({thickness} cm) with interface conductance {conductance} W/cm²K")
             # Clear fitting bounds for next layer
@@ -865,24 +917,24 @@ class FDTRGui:
         except Exception as e:
             messagebox.showerror("Error", f"Error adding layer: {str(e)}")
             
-    def update_structure_display(self):
-        """Update the structure display text"""
-        if self.domain is None:
-            self.structure_text.delete(1.0, tk.END)
-            self.structure_text.insert(tk.END, "No domain created")
-            return
+    # def update_structure_display(self):
+    #     """Update the structure display text"""
+    #     if self.domain is None:
+    #         self.structure_text.delete(1.0, tk.END)
+    #         self.structure_text.insert(tk.END, "No domain created")
+    #         return
             
-        self.structure_text.delete(1.0, tk.END)
-        self.structure_text.insert(tk.END, f"Domain Temperature: {self.domain.temperature}K\n\n")
+    #     self.structure_text.delete(1.0, tk.END)
+    #     self.structure_text.insert(tk.END, f"Domain Temperature: {self.domain.temperature}K\n\n")
         
-        if hasattr(self.domain, 'heat_path') and self.domain.heat_path:
-            self.structure_text.insert(tk.END, "Heat Path Structure:\n")
-            for i, layer in enumerate(self.domain.heat_path):
-                if hasattr(layer, 'thickness'):
-                    material_name = getattr(layer.material, 'materialname', 'Unknown')
-                    self.structure_text.insert(tk.END, f"Layer {i//2}: {material_name} ({layer.thickness} cm)\n")
-                else:
-                    self.structure_text.insert(tk.END, f"Interface {i//2}: Conductance = {getattr(layer, 'tbc', 'Not set')}\n")
+    #     if hasattr(self.domain, 'heat_path') and self.domain.heat_path:
+    #         self.structure_text.insert(tk.END, "Heat Path Structure:\n")
+    #         for i, layer in enumerate(self.domain.heat_path):
+    #             if hasattr(layer, 'thickness'):
+    #                 material_name = getattr(layer.material, 'materialname', 'Unknown')
+    #                 self.structure_text.insert(tk.END, f"Layer {i//2}: {material_name} ({layer.thickness} cm)\n")
+    #             else:
+    #                 self.structure_text.insert(tk.END, f"Interface {i//2}: Conductance = {getattr(layer, 'tbc', 'Not set')}\n")
                     
     def create_model(self):
         """Create the FDTR model with fitting parameters"""
@@ -911,7 +963,6 @@ class FDTRGui:
                     if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
                         self.fitting_params.add(param_name, pump_radius, min_val, max_val)
                     pump_radius = self.fitting_params.get_parameter(param_name)
-                    messagebox.showinfo("Info", f"Added pump radius fitting parameter: {param_name}")
             
             if self.probe_radius_is_fitting.get():
                 default_name = "probe_radius"
@@ -924,7 +975,6 @@ class FDTRGui:
                     if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
                         self.fitting_params.add(param_name, probe_radius, min_val, max_val)
                     probe_radius = self.fitting_params.get_parameter(param_name)
-                    messagebox.showinfo("Info", f"Added probe radius fitting parameter: {param_name}")
             
             if self.beam_offset_is_fitting.get():
                 default_name = "beam_offset"
@@ -937,37 +987,79 @@ class FDTRGui:
                     if not hasattr(self.fitting_params, 'param_names') or param_name not in self.fitting_params.param_names:
                         self.fitting_params.add(param_name, beam_offset, min_val, max_val)
                     beam_offset = self.fitting_params.get_parameter(param_name)
-                    messagebox.showinfo("Info", f"Added beam offset fitting parameter: {param_name}")
             
             backend = self.backend_var.get()
             
             self.model = FourierModelFDTR(self.domain, pump_radius, probe_radius, beam_offset, 
                                         fitting_params=self.fitting_params, backend=backend)
             
-            # Ask for model name and store it
-            model_name = simpledialog.askstring("Model Name", 
-                                               f"Enter name for this model:", 
-                                               initialvalue=f"Model_{self.model_counter}")
-            if model_name:
-                self.models[model_name] = self.model
-                self.model_counter += 1
-                self.model_status_var.set(f"Model '{model_name}' created with {backend} backend")
-                messagebox.showinfo("Success", f"FDTR model '{model_name}' created successfully")
-            else:
-                self.model_status_var.set(f"Model created with {backend} backend")
-                messagebox.showinfo("Success", "FDTR model created successfully")
-            
-            # Update fitting info display
-            self.update_model_list()
+            # Get model name from combobox (editable)
+            model_name = self.model_name_var.get().strip()
+            if not model_name:
+                model_name = f"Model_{self.model_counter}"
+                self.model_name_var.set(model_name)
+            self.models[model_name] = self.model
+            if model_name not in self.model_name_combo['values']:
+                self.model_name_combo['values'] = list(self.models.keys())
+            self.model_counter += 1
+            self.model_status_var.set(f"Model '{model_name}' created with {backend} backend")
+            messagebox.showinfo("Success", f"FDTR model '{model_name}' created successfully")
+            self.update_combo_boxes()
             self.update_fitting_parameters()
             self.domain = None  # Reset domain to force new creation for next model
             self.fitting_params = None  # Reset fitting parameters for next model
-            self.update_structure_display()
-            self.pump_radius_is_fitting.set(False)
-            self.probe_radius_is_fitting.set(False)
-            self.beam_offset_is_fitting.set(False)
+            self.model_name_combo.set('')
         except Exception as e:
             messagebox.showerror("Error", f"Error creating model: {str(e)}")
+            self.model = None
+            return
+    
+    def on_model_name_selected(self, event):
+        """Load parameters when an existing model is selected in the combobox"""
+        model_name = self.model_name_var.get()
+        if model_name in self.models:
+            model = self.models[model_name]
+            # Load beam parameters if available
+            if hasattr(model, 'pump_radius'):
+                self.pump_radius_var.set(str(model.pump_radius))
+            if hasattr(model, 'probe_radius'):
+                self.probe_radius_var.set(str(model.probe_radius))
+            if hasattr(model, 'beam_offset'):
+                self.beam_offset_var.set(str(model.beam_offset))
+            if hasattr(model, 'backend'):
+                self.backend_var.set(str(model.backend))
+
+    # def update_model_parameters(self):
+    #     """Update the parameters of the currently selected model with modified values"""
+    #     model_name = self.model_name_var.get()
+    #     if model_name not in self.models:
+    #         messagebox.showerror("Error", "No model selected to update.")
+    #         return
+    #     try:
+    #         model = self.models[model_name]
+    #         # Update domain if changed
+    #         if self.domain is not None:
+    #             model.domain = self.domain
+    #         # Update fitting parameters if changed
+    #         if self.fitting_params is not None:
+    #             model.fitting_params = self.fitting_params
+    #         # Update beam parameters
+    #         model.pump_radius = float(eval(self.pump_radius_var.get()))
+    #         model.probe_radius = float(eval(self.probe_radius_var.get()))
+    #         model.beam_offset = float(eval(self.beam_offset_var.get()))
+    #         model.backend = self.backend_var.get()
+    #         messagebox.showinfo("Success", f"Model '{model_name}' parameters updated.")
+    #         # Update fitting info display
+    #         self.update_model_list()
+    #         self.update_fitting_parameters()
+    #         self.domain = None  # Reset domain to force new creation for next model
+    #         self.fitting_params = None  # Reset fitting parameters for next model
+    #         self.update_structure_display()
+    #         self.pump_radius_is_fitting.set(False)
+    #         self.probe_radius_is_fitting.set(False)
+    #         self.beam_offset_is_fitting.set(False)
+    #     except Exception as e:
+    #         messagebox.showerror("Error", f"Error updating model parameters: {str(e)}")
 
     def update_fitting_parameters(self):
         """Update the fitting parameters display"""
@@ -1299,9 +1391,30 @@ class FDTRGui:
         
         # Display model information
         info_text.insert(tk.END, f"Model Name: {model_name}\n")
-        info_text.insert(tk.END, f"Model Type: {type(model).__name__}\n")
         info_text.insert(tk.END, f"Backend: {getattr(model, 'backend', 'Unknown')}\n")
+
+        info_text.insert(tk.END, f"Added Layers (last is top reflective layer):\n")
+        for layer in model.domain.heat_path:
+            
+            if hasattr(layer, 'thickness'):
+                material_name = getattr(layer.material, 'materialname', 'Unknown')
+                info_text.insert(tk.END, f"Layer: {material_name}, Thickness: {layer.thickness} cm\n")
+                info_text.insert(tk.END, f"  kzz: {getattr(layer, 'kzz', 'Not set')} W/cmK, kxx: {getattr(layer, 'kxx', 'Not set')} W/cmK, cp: {getattr(layer, 'cp', 'Not set')} J/cm³K\n")
+            else:
+                info_text.insert(tk.END, f"Interface: Conductance = {getattr(layer, 'g', 'Not set')} W/cm²K\n")
+            info_text.insert(tk.END, f"----------------\n")
+
+        info_text.insert(tk.END, f"Transparent top Layers:\n")
+        for layer in model.domain.top_heat_path:
+            if hasattr(layer, 'thickness'):
+                material_name = getattr(layer.material, 'materialname', 'Unknown')
+                info_text.insert(tk.END, f"Layer: {material_name}, Thickness: {layer.thickness} cm\n")
+                info_text.insert(tk.END, f"  kzz: {getattr(layer, 'kzz', 'Not set')} W/cmK, kxx: {getattr(layer, 'kxx', 'Not set')} W/cmK, cp: {getattr(layer, 'cp', 'Not set')} J/cm³K\n")
+            else:
+                info_text.insert(tk.END, f"Interface: Conductance = {getattr(layer, 'g', 'Not set')} W/cm²K\n")
         
+            info_text.insert(tk.END, f"----------------\n")
+            
         if hasattr(model, 'domain') and model.domain:
             info_text.insert(tk.END, f"Domain Temperature: {model.domain.temperature}K\n")
             
