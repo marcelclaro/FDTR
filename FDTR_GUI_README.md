@@ -77,7 +77,6 @@ The GUI includes the following predefined materials:
 ## Example Workflow
 
 1. **Domain Setup Tab:**
-   - Create domain at 300K
    - Add Sapphire substrate
    - Add Gold layer (60e-7 cm thick)
    - Set interface 1 conductance to 5e3 W/cm²K
@@ -87,8 +86,7 @@ The GUI includes the following predefined materials:
    - Set beam offset to 0
    - Choose numpy backend
    - Create model
-   - Set frequency range 1e3 to 40e6 Hz with 10e3 step
-   - Calculate phase
+
 
 3. **Parameter Fitting Tab:**
    - Load experimental data file
@@ -96,9 +94,9 @@ The GUI includes the following predefined materials:
    - Start fitting with 'nelder' method
 
 4. **Results Tab:**
-   - Plot results to compare experimental vs fitted data
+   - Plot model curve
    - Perform sensitivity analysis on 'kz' parameter
-   - Save results to file
+
 
 ## File Format for Experimental Data
 
@@ -121,7 +119,7 @@ Example:
 
 - Use scientific notation for small values (e.g., 60e-7 instead of 0.0000006)
 - For numerical stability, the library uses cm units for thermal conductivity (W/cmK)
-- The mpmath backend is slower but more numerically stable for complex models
+- The mpmath backend is slower but could be more numerically stable for complex models
 - Always create the domain before adding layers or creating models
 - Interface numbers start from 1 and count from bottom to top
 
