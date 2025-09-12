@@ -65,6 +65,9 @@ class FDTRGui:
             'In2Se3': in2se3,
             'Default': default_material
         }
+
+        # Initialize top_layer_num for transparent layer management
+        self.top_layer_num = 0
         
         self.setup_ui()
         
@@ -812,12 +815,11 @@ class FDTRGui:
             conductance = float(eval(self.interface_cond_var.get()))
             # Check if adding as top layer
             if self.add_top_layer_var.get():
+                self.top_layer_num += 1
                 # Use domain.add_toplayer and set_top_interface_condu
-                if hasattr(self.domain, 'add_toplayer'):
-                    self.domain.add_toplayer(thickness, material_class)
-                if hasattr(self.domain, 'set_top_interface_condu'):
-                    # Use 1 for interface number, as in your example
-                    self.domain.set_top_interface_condu(1, conductance)
+                self.domain.add_toplayer(thickness, material_class)
+                print(f"Top layer num: {self.top_layer_num}")
+                self.domain.set_top_interface_condu(self.top_layer_num, conductance)
             else:
                 # Add the layer (this automatically creates an interface)
                 self.domain.add_layer(thickness, material_class)
