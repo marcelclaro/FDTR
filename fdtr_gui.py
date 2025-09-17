@@ -818,7 +818,6 @@ class FDTRGui:
                 self.top_layer_num += 1
                 # Use domain.add_toplayer and set_top_interface_condu
                 self.domain.add_toplayer(thickness, material_class)
-                print(f"Top layer num: {self.top_layer_num}")
                 self.domain.set_top_interface_condu(self.top_layer_num, conductance)
             else:
                 # Add the layer (this automatically creates an interface)

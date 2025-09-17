@@ -14,18 +14,20 @@ import copy
 class Fitting_parameters:
     
 	class Fitting_parameter:
-		def __init__(self, name, value, min=None, max=None):
+		def __init__(self, name, value, min=None, max=None, regularization_coeff=0.0):
 			self.name = name
 			self.value = value
+			self.initial_value = value  # Store the initial value
 			self.min = min
 			self.max = max
 			self.sympy_symbol = symbols(name)  # Create a sympy symbol for the parameter
+			self.regularization_coeff = regularization_coeff  # Default regularization coefficient
 
 	def __init__(self):
 		self.parameters = []
 
-	def add(self, name, value, min=None, max=None):
-		param = self.Fitting_parameter(name, value, min, max)
+	def add(self, name, value, min=None, max=None, regularization_coeff=0.0):
+		param = self.Fitting_parameter(name, value, min, max, regularization_coeff)
 		# Avoid adding duplicate parameter names
 		if any(existing_param.name == name for existing_param in self.parameters):
 			raise ValueError(f"Parameter '{name}' already exists.")
@@ -190,12 +192,24 @@ class FourierModelFDTR:
 	def get_phase(self,frequency):
 
 		self.omega = 2.0*np.pi*frequency
+
+		# Check if rpump and rprobe are sympy symbols and replace with values if they are fitting parameters
+		rpump_value = self.rpump
+		rprobe_value = self.rprobe
+
+		if self.fitting_params is not None and not isinstance(self.rpump, float) and not isinstance(self.rprobe, float):
+			for param in self.fitting_params.parameters:
+				if param.sympy_symbol == self.rpump:
+					rpump_value = param.value
+				if param.sympy_symbol == self.rprobe:
+					rprobe_value = param.value
 		
 		if self.backend == 'numpy':
 			if self.beamoffset == 0:
 				
+
 				# integration
-				upperbound = 20.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
+				upperbound = 20.0 / np.sqrt(rpump_value * rpump_value + rprobe_value * rprobe_value)
 				result = complex_quadrature(self.tointegrate,0.0,upperbound,epsrel=1e-10)
 
 				calc_phase = 180*np.arctan(np.imag(result[0])/np.real(result[0]))/np.pi
@@ -203,7 +217,7 @@ class FourierModelFDTR:
 			else:
 				
 				# integration
-				upperbound = 20.0 / np.sqrt(self.rpump * self.rpump + (self.rprobe)*(self.rprobe))
+				upperbound = 20.0 / np.sqrt(rpump_value * rpump_value + rprobe_value * rprobe_value)
 
 				#scheme = quadpy.c2._witherden_vincent.witherden_vincent_21()
 				#scheme = quadpy.c2._burnside.burnside()
@@ -215,12 +229,12 @@ class FourierModelFDTR:
 		elif self.backend == 'mpmath':
 			mpmath.dps = self.precision; mpmath.pretty = True
 			if self.beamoffset == 0:
-				# Calculate function to be integrated "Inverse Hankel"				
-				upperbound = 20.0 / np.sqrt(self.rpump * self.rpump + self.rprobe * self.rprobe)
+				# Calculate function to be integrated "Inverse Hankel"
+				upperbound = 20.0 / np.sqrt(rpump_value * rpump_value + rprobe_value * rprobe_value)
 				result = mpmath.quad(self.tointegrate_mpmath,[0.0, upperbound])
 			else:
 				# integration
-				upperbound = 20.0 / np.sqrt(self.rpump * self.rpump + (self.rprobe+self.beamoffset)*(self.rprobe+self.beamoffset))
+				upperbound = 20.0 / np.sqrt(rpump_value * rpump_value + (rprobe_value+self.beamoffset)*(rprobe_value+self.beamoffset))
 
 				result = mpmath.quad(self.tointegrate2D_mpmath,[-upperbound, upperbound], [-upperbound, upperbound])
 
@@ -250,7 +264,16 @@ class FourierModelFDTR:
 					p.value = params[param.name].value
 			phase = []
 			phase = [self.get_phase(f) for f in freq[range[0]:range[1]]]
-			return np.array(phase) - np.array(measured[range[0]:range[1]])
+
+			regularization_terms = 0.0
+			# Add regularization terms if specified
+			for param in self.fitting_params.parameters:
+				if param.regularization_coeff != 0.0:
+					# L2 regularization term
+					regularization_terms += param.regularization_coeff * ((param.value-param.initial_value) ** 2) / (param.initial_value**2)
+
+			return np.array(phase) - np.array(measured[range[0]:range[1]]) + regularization_terms
+			
 
 		out = lmfit.minimize(residuals, self.lmfit_params, args=(experimental_points[range[0]:range[1],0],experimental_points[range[0]:range[1],1]), method=method,max_nfev=max_nfev)
 		
@@ -327,6 +350,7 @@ def multimodel_fitting(model_lst,data_lst, method='differential_evolution', rang
 		def residuals_multi(params, model_lst, data_lst):
 			# Ensure the value is also updated in self.fitting_params.parameters
 			residuals = []
+			regularization_terms = 0.0
 			for model,data in zip(model_lst,data_lst):
 				for p in model.fitting_params.parameters:
 					if p.name in params:
@@ -336,7 +360,14 @@ def multimodel_fitting(model_lst,data_lst, method='differential_evolution', rang
 					phase.append(model.get_phase(f))
 				partial_residuals = np.array(phase) - np.array(data[range[0]:range[1],1])
 				residuals.append(partial_residuals)
-			return np.concatenate(residuals)
+
+				# Add regularization terms if specified
+				for p in model.fitting_params.parameters:
+					if p.regularization_coeff != 0.0:
+						# L2 regularization term
+						regularization_terms += p.regularization_coeff * ((p.value-p.initial_value) ** 2)/ (p.initial_value**2)
+
+			return np.concatenate(residuals) + regularization_terms
 
 		out = lmfit.minimize(residuals_multi, parameter, args=(model_lst, data_lst), method=method,max_nfev=max_nfev)
 
