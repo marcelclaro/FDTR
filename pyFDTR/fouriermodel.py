@@ -260,8 +260,8 @@ class FourierModelFDTR:
 		def residuals(params, freq, measured):
 			# Ensure the value is also updated in self.fitting_params.parameters
 			for p in self.fitting_params.parameters:
-				if p.name == param.name:
-					p.value = params[param.name].value
+				if p.name in params:
+						p.value = params[p.name].value
 			phase = []
 			phase = [self.get_phase(f) for f in freq[range[0]:range[1]]]
 
